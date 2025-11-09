@@ -18,6 +18,8 @@ A Claude Code skill for browser automation using Playwright. Requires `uv`. And 
 
 Clone this directory into your [Claude skills directory](https://code.claude.com/docs/en/skills). I won't bother making a plugin.
 
+Then just mention "use the browser-tools skill to do XY" and Claude should invoke it automatically. It's recommended to set `CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR` to `1` in your [environment](https://code.claude.com/docs/en/settings#environment-variables).
+
 ## Documentation
 
 - **[SKILL.md](SKILL.md)** - Quick reference for Claude
