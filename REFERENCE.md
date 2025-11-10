@@ -10,7 +10,7 @@ Start Chrome with remote debugging:
 uv run scripts/start.py
 ```
 
-By default, this launches Chrome Canary. Use `--browser` to specify a different variant (chrome-stable, chrome-beta, chrome-dev, chrome-canary). There is no need to wait for the browser to start since the scripts already try connecting multiple times with backoff.
+By default, this launches Chrome Canary. Use `--browser` to specify a different variant (chrome-stable, chrome-beta, chrome-dev, chrome-canary). There is no need to use "sleep" or equivalents since the scripts already try connecting multiple times with backoff.
 
 To use a custom browser executable:
 

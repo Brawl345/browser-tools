@@ -7,7 +7,7 @@ description: Interact with a web browser. Can start a browser, connect to it, ev
 
 ## Quick start
 
-These scripts can be run from anywhere, you only need to use the full path to this file's directory, but NEVER change the working directory.
+These scripts can be run from anywhere, you only need to use the full path to this file's directory, but NEVER change the working directory. There is also no need to use "sleep" since all scripts will wait automatically.
 
 Always start Chrome with remote debugging first:
 
