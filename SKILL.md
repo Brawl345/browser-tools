@@ -13,7 +13,6 @@ Always start Chrome with remote debugging first:
 
 ```bash
 uv run scripts/start.py
-# No waiting necessary
 ```
 
 Navigate to a web page:
