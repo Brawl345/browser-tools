@@ -9,6 +9,7 @@ A Claude Code skill for browser automation using Playwright. Requires `uv`. And 
 - **Execute JavaScript**: Run inline code or scripts from files
 - **Element Picker**: Interactive DOM element selection
 - **Click Element**: Click on elements using CSS selectors
+- **Fill Text Fields**: Fill input and textarea elements with text
 - **Console Logs**: Capture browser console messages and errors
 - **Network Monitor**: Track HTTP requests with filtering and body inspection
 - **HTML Extraction**: Get page HTML with optional context search

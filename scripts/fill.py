@@ -14,6 +14,7 @@ from browser_utils import get_browser_and_page
 
 @click_lib.command()
 @click_lib.argument("selector")
+@click_lib.argument("text")
 @click_lib.option(
     "--port",
     type=int,
@@ -27,22 +28,21 @@ from browser_utils import get_browser_and_page
     help="Timeout in milliseconds (default: 10000)"
 )
 @click_lib.option(
-    "--force",
+    "--clear",
     is_flag=True,
-    help="Force click even if element is not visible or enabled"
+    help="Clear the field before filling"
 )
-def main(selector, port, timeout, force):
-    """Click on an element using a CSS selector.
+def main(selector, text, port, timeout, clear):
+    """Fill a text field using a CSS selector.
 
     Example:
-      click-element.py "button#submit"
-      click-element.py ".product-card:first-child"
-      click-element.py "a[href='/login']" --timeout 5000
-      click-element.py "#hidden-button" --force
+      fill.py "input#username" "john_doe"
+      fill.py "textarea#comment" "Hello, world!" --clear
+      fill.py "input[name='email']" "user@example.com" --timeout 5000
     """
-    asyncio.run(click_element(selector, port, timeout, force))
+    asyncio.run(fill_field(selector, text, port, timeout, clear))
 
-async def click_element(selector, port, timeout, force):
+async def fill_field(selector, text, port, timeout, clear):
     async with async_playwright():
         try:
             browser, page = await get_browser_and_page(port)
@@ -52,17 +52,19 @@ async def click_element(selector, port, timeout, force):
             await page.bring_to_front()
 
             click_lib.echo(f"Connected to page: {page.url}")
-            click_lib.echo(f"Looking for element: {selector}")
+            click_lib.echo(f"Looking for field: {selector}")
 
-            if force:
-                await page.locator(selector).click(force=True, timeout=timeout)
-            else:
-                await page.locator(selector).click(timeout=timeout)
+            locator = page.locator(selector)
 
-            click_lib.echo(f"Successfully clicked element: {selector}")
+            if clear:
+                await locator.clear(timeout=timeout)
+
+            await locator.fill(text, timeout=timeout)
+
+            click_lib.echo(f"Successfully filled field: {selector}")
 
         except Exception as e:
-            click_lib.echo(f"Failed to click element: {e}", err=True)
+            click_lib.echo(f"Failed to fill field: {e}", err=True)
 
 if __name__ == "__main__":
     main()

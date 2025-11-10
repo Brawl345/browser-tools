@@ -48,6 +48,14 @@ uv run scripts/click-element.py ".product-card:first-child"
 uv run scripts/click-element.py "#hidden-button" --force
 ```
 
+Fill a text field using a CSS selector:
+
+```bash
+uv run scripts/fill.py "input#username" "john_doe"
+uv run scripts/fill.py "textarea#comment" "Hello, world!" --clear
+uv run scripts/fill.py "input[name='email']" "user@example.com"
+```
+
 Get console messages and errors from the browser:
 
 ```bash

@@ -101,7 +101,22 @@ uv run scripts/click-element.py "button.load-more" --timeout 5000
 
 Options:
 - `--force`: Force click even if element is not visible or enabled
-- `--timeout`: Timeout in milliseconds (default: 30000)
+- `--timeout`: Timeout in milliseconds (default: 10000)
+
+### Fill Text Fields
+
+Fill input or textarea elements with text using a CSS selector:
+
+```bash
+uv run scripts/fill.py "input#username" "john_doe"
+uv run scripts/fill.py "textarea#comment" "Hello, world!"
+uv run scripts/fill.py "input[name='email']" "user@example.com" --clear
+uv run scripts/fill.py "input.search" "search query" --timeout 5000
+```
+
+Options:
+- `--clear`: Clear the field before filling
+- `--timeout`: Timeout in milliseconds (default: 10000)
 
 ### Console
 
