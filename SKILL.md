@@ -40,6 +40,14 @@ uv run scripts/pick.py "Select all product cards"
 
 Returns element information including tag, id, class, text content, HTML, and parent hierarchy.
 
+Click on an element using a CSS selector:
+
+```bash
+uv run scripts/click-element.py "button#submit"
+uv run scripts/click-element.py ".product-card:first-child"
+uv run scripts/click-element.py "#hidden-button" --force
+```
+
 Get console messages and errors from the browser:
 
 ```bash

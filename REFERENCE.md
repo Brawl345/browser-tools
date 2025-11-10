@@ -86,6 +86,22 @@ uv run scripts/pick.py "Select all product cards"
 
 Returns element information including tag, id, class, text content, HTML, and parent hierarchy.
 
+### Click Element
+
+Click on an element using a CSS selector:
+
+```bash
+uv run scripts/click-element.py "button#submit"
+uv run scripts/click-element.py ".product-card:first-child"
+uv run scripts/click-element.py "a[href='/login']"
+uv run scripts/click-element.py "#hidden-button" --force
+uv run scripts/click-element.py "button.load-more" --timeout 5000
+```
+
+Options:
+- `--force`: Force click even if element is not visible or enabled
+- `--timeout`: Timeout in milliseconds (default: 30000)
+
 ### Console
 
 Get browser console messages and page errors (up to 200 most recent messages):
