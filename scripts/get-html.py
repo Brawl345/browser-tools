@@ -8,6 +8,7 @@
 # ///
 
 import asyncio
+import re
 import click
 from playwright.async_api import async_playwright
 from browser_utils import get_browser_and_page
@@ -20,21 +21,21 @@ from browser_utils import get_browser_and_page
     help="Remote debugging port (default: 9222)"
 )
 @click.option(
-    "--context",
+    "--filter",
     type=str,
-    help="Search string to find and show surrounding lines"
+    help="Regex pattern to search and show surrounding lines"
 )
 @click.option(
     "--lines",
     type=int,
     default=5,
-    help="Number of lines before and after context match (default: 5)"
+    help="Number of lines before and after match (default: 5)"
 )
-def main(port, context, lines):
+def main(port, filter, lines):
     """Get the HTML content of the current page."""
-    asyncio.run(get_html(port, context, lines))
+    asyncio.run(get_html(port, filter, lines))
 
-async def get_html(port, context, context_lines):
+async def get_html(port, filter_pattern, context_lines):
     async with async_playwright():
         try:
             browser, page = await get_browser_and_page(port)
@@ -43,11 +44,17 @@ async def get_html(port, context, context_lines):
 
             html = await page.content()
 
-            if context:
+            if filter_pattern:
+                try:
+                    pattern = re.compile(filter_pattern)
+                except re.error as e:
+                    click.echo(f"Invalid regex pattern: {e}", err=True)
+                    return
+
                 lines = html.split('\n')
                 matches = []
                 for i, line in enumerate(lines):
-                    if context in line:
+                    if pattern.search(line):
                         start = max(0, i - context_lines)
                         end = min(len(lines), i + context_lines + 1)
                         matches.append({
@@ -57,7 +64,7 @@ async def get_html(port, context, context_lines):
                         })
 
                 if not matches:
-                    click.echo(f"No matches found for '{context}'", err=True)
+                    click.echo(f"No matches found for pattern '{filter_pattern}'", err=True)
                     return
 
                 for match in matches:

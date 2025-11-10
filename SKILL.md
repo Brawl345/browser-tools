@@ -65,11 +65,12 @@ uv run scripts/network.py --filter "api\\.example\\.com" --show-headers
 uv run scripts/network.py --no-reload --duration 10
 ```
 
-Get the full HTML content of the page, or search for specific content:
+Get the full HTML content of the page, or filter with regex:
 
 ```bash
 uv run scripts/get-html.py
-uv run scripts/get-html.py --context "<b>my-search-string</b>"
+uv run scripts/get-html.py --filter "<button.*submit.*>"
+uv run scripts/get-html.py --filter "data-id=\"\d+\"" --lines 10
 ```
 
 For detailed API reference, see [REFERENCE.md](REFERENCE.md).

@@ -47,15 +47,16 @@ uv run scripts/evaluate.py path/to/script.js
 
 ### Get HTML
 
-Get the full HTML content of the current page, or search for specific content:
+Get the full HTML content of the current page, or filter with regex:
 
 ```bash
 uv run scripts/get-html.py
-uv run scripts/get-html.py --context "search-string"
-uv run scripts/get-html.py --context "search-string" --lines 10
+uv run scripts/get-html.py --filter "search-string"
+uv run scripts/get-html.py --filter "<button.*submit.*>"
+uv run scripts/get-html.py --filter "data-id=\"\d+\"" --lines 10
 ```
 
-With `--context`, the script searches for the string and outputs matching lines with surrounding context (default: 5 lines before and after).
+With `--filter`, the script searches for the regex pattern and outputs matching lines with surrounding context (default: 5 lines before and after).
 
 ### Screenshot
 
