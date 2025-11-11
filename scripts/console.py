@@ -49,10 +49,12 @@ async def get_console_messages(port, errors_only):
                 return
 
             messages = await page.console_messages()
+            errors = await page.page_errors()
 
-            if not messages:
-                console.print("[dim]No console messages available.[/dim]")
-            else:
+            has_output = False
+
+            if messages:
+                has_output = True
                 for msg in messages:
                     msg_type = msg.type
 
@@ -66,6 +68,19 @@ async def get_console_messages(port, errors_only):
                     if msg.location:
                         loc = msg.location
                         console.print(f"  at {loc.get('url', '')}:{loc.get('lineNumber', '')}:{loc.get('columnNumber', '')}", style=Style(dim=True))
+
+            if errors:
+                has_output = True
+                if messages:
+                    console.print()
+                console.print("[bold red]Page Errors:[/bold red]")
+                for error in errors:
+                    console.print(f"[ERROR] {error.name}: {error.message}", style=TYPE_STYLES["error"])
+                    if error.stack:
+                        console.print(f"  {error.stack}", style=Style(dim=True))
+
+            if not has_output:
+                console.print("[dim]No console messages or page errors available.[/dim]")
 
         except Exception as e:
             click.echo(f"Failed to connect: {e}", err=True)
