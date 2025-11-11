@@ -56,7 +56,6 @@ async def check_element(selector, port, timeout, uncheck, force):
 
             await page.bring_to_front()
 
-            click_lib.echo(f"Connected to page: {page.url}")
             click_lib.echo(f"Looking for element: {selector}")
 
             locator = page.locator(selector)

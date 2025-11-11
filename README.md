@@ -10,7 +10,9 @@ A Claude Code skill for browser automation using Playwright. Requires `uv`. And 
 - **Element Picker**: Interactive DOM element selection
 - **Click Element**: Click on elements using CSS selectors
 - **Fill Text Fields**: Fill input and textarea elements with text
+- **Check Elements**: Check/uncheck checkboxes and select radio buttons
 - **Press Key**: Press keyboard keys (Enter, Escape, Tab, etc.)
+- **Select Dropdown**: Choose options from dropdown menus
 - **Console Logs**: Capture browser console messages and errors
 - **Network Monitor**: Track HTTP requests with filtering and body inspection
 - **HTML Extraction**: Get page HTML with optional context search

@@ -52,8 +52,6 @@ async def press_key(key, port, selector, timeout):
 
             await page.bring_to_front()
 
-            click_lib.echo(f"Connected to page: {page.url}")
-
             if selector:
                 click_lib.echo(f"Focusing element: {selector}")
                 locator = page.locator(selector)

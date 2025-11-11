@@ -51,7 +51,6 @@ async def click_element(selector, port, timeout, force):
 
             await page.bring_to_front()
 
-            click_lib.echo(f"Connected to page: {page.url}")
             click_lib.echo(f"Looking for element: {selector}")
 
             if force:

@@ -154,6 +154,22 @@ Options:
 - `--selector`: Optional CSS selector to focus before pressing key
 - `--timeout`: Timeout in milliseconds (default: 10000)
 
+### Select Dropdown
+
+Select an option from a dropdown menu using a CSS selector:
+
+```bash
+uv run scripts/select-dropdown.py "select#country" "US"
+uv run scripts/select-dropdown.py "select[name='color']" "Red" --by-label
+uv run scripts/select-dropdown.py "#quantity" "2" --by-index
+uv run scripts/select-dropdown.py "select.product-options" "medium" --timeout 5000
+```
+
+Options:
+- `--by-label`: Select by visible label text instead of value attribute
+- `--by-index`: Select by zero-based index position
+- `--timeout`: Timeout in milliseconds (default: 10000)
+
 ### Console
 
 Get browser console messages and page errors (up to 200 most recent messages):

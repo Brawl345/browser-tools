@@ -72,6 +72,14 @@ uv run scripts/press-key.py "Escape"
 uv run scripts/press-key.py "a" --selector "input#search"
 ```
 
+Select an option from a dropdown:
+
+```bash
+uv run scripts/select-dropdown.py "select#country" "US"
+uv run scripts/select-dropdown.py "select[name='color']" "Red" --by-label
+uv run scripts/select-dropdown.py "#quantity" "2" --by-index
+```
+
 Get console messages and errors from the browser:
 
 ```bash

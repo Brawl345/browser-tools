@@ -39,8 +39,6 @@ async def pick_elements(message, port):
 
             await page.bring_to_front()
 
-            click.echo(f"Connected to page: {page.url}")
-
             await page.evaluate("""() => {
                 if (!window.pick) {
                     window.pick = async (message) => {

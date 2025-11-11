@@ -50,4 +50,8 @@ async def get_browser_and_page(port: int = 9222) -> tuple[Optional[Browser], Opt
         return browser, None
 
     page = await get_active_page(context)
+
+    if page:
+        click.echo(f"Connected to page: {page.url}")
+
     return browser, page

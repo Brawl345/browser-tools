@@ -51,7 +51,6 @@ async def fill_field(selector, text, port, timeout, clear):
 
             await page.bring_to_front()
 
-            click_lib.echo(f"Connected to page: {page.url}")
             click_lib.echo(f"Looking for field: {selector}")
 
             locator = page.locator(selector)
