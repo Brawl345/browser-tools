@@ -118,6 +118,25 @@ Options:
 - `--clear`: Clear the field before filling
 - `--timeout`: Timeout in milliseconds (default: 10000)
 
+### Press Key
+
+Press keyboard keys (Enter, Escape, Tab, etc.):
+
+```bash
+uv run scripts/press-key.py "Enter"
+uv run scripts/press-key.py "Escape"
+uv run scripts/press-key.py "Tab"
+uv run scripts/press-key.py "a"
+uv run scripts/press-key.py "a" --selector "input#search"
+uv run scripts/press-key.py "Enter" --timeout 5000
+```
+
+Common keys: Enter, Escape, Tab, Backspace, Delete, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, or any single character.
+
+Options:
+- `--selector`: Optional CSS selector to focus before pressing key
+- `--timeout`: Timeout in milliseconds (default: 10000)
+
 ### Console
 
 Get browser console messages and page errors (up to 200 most recent messages):

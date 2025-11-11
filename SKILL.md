@@ -56,6 +56,14 @@ uv run scripts/fill.py "textarea#comment" "Hello, world!" --clear
 uv run scripts/fill.py "input[name='email']" "user@example.com"
 ```
 
+Press a keyboard key:
+
+```bash
+uv run scripts/press-key.py "Enter"
+uv run scripts/press-key.py "Escape"
+uv run scripts/press-key.py "a" --selector "input#search"
+```
+
 Get console messages and errors from the browser:
 
 ```bash
