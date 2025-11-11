@@ -56,6 +56,14 @@ uv run scripts/fill.py "textarea#comment" "Hello, world!" --clear
 uv run scripts/fill.py "input[name='email']" "user@example.com"
 ```
 
+Check/uncheck checkboxes or select radio buttons:
+
+```bash
+uv run scripts/check.py "input#accept-terms"
+uv run scripts/check.py "input[name='newsletter']" --uncheck
+uv run scripts/check.py "input[type='radio'][value='option1']"
+```
+
 Press a keyboard key:
 
 ```bash

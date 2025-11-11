@@ -118,6 +118,23 @@ Options:
 - `--clear`: Clear the field before filling
 - `--timeout`: Timeout in milliseconds (default: 10000)
 
+### Check/Uncheck Elements
+
+Check or uncheck checkboxes and select radio buttons using a CSS selector:
+
+```bash
+uv run scripts/check.py "input#accept-terms"
+uv run scripts/check.py "input[name='newsletter']" --uncheck
+uv run scripts/check.py "input[type='radio'][value='option1']"
+uv run scripts/check.py "#hidden-checkbox" --force
+uv run scripts/check.py "input.terms" --timeout 5000
+```
+
+Options:
+- `--uncheck`: Uncheck the checkbox (only works for checkboxes, not radio buttons)
+- `--force`: Force check even if element is not visible or enabled
+- `--timeout`: Timeout in milliseconds (default: 10000)
+
 ### Press Key
 
 Press keyboard keys (Enter, Escape, Tab, etc.):
