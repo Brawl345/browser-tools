@@ -3,7 +3,7 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "click",
-#     "playwright @ git+https://github.com/microsoft/playwright-python.git@f283da50d64ee896d0a148522b6c719b86b721f3",
+#     "playwright>=1.56.0",
 #     "rich",
 # ]
 # ///
