@@ -153,6 +153,16 @@ uv run scripts/get-html.py --filter "<button.*submit.*>"
 uv run scripts/get-html.py --filter "data-id=\"\d+\"" --lines 10
 ```
 
+## Manage tabs
+
+List all open tabs, switch to a specific tab, or close a tab:
+
+```bash
+uv run scripts/tabs.py
+uv run scripts/tabs.py --switch 0
+uv run scripts/tabs.py --close 1
+```
+
 ## More
 
 For detailed API reference, see [REFERENCE.md](REFERENCE.md).

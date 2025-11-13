@@ -304,6 +304,29 @@ Options:
 - `--show-headers`: Show request and response headers
 - `--show-body`: Show request and response bodies (only for fetch/xhr)
 
+### Tabs
+
+List all open tabs and their URLs, switch to a specific tab, or close a tab by index:
+
+```bash
+uv run scripts/tabs.py
+uv run scripts/tabs.py --switch 0
+uv run scripts/tabs.py --close 1
+```
+
+The script displays:
+- Tab index (0-based)
+- Tab title
+- Tab URL
+
+When switching tabs, the specified tab is brought to the front, which makes `get_active_page()` return that tab for subsequent operations.
+
+Options:
+- `--switch`: Tab index to switch to (0-based)
+- `--close`: Tab index to close (0-based)
+- If neither option is provided, lists all tabs instead
+- Cannot use `--switch` and `--close` together
+
 ## Global Options
 
 All scripts support `--port` to specify a custom debugging port (default: 9222):

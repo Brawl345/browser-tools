@@ -21,6 +21,7 @@ A Claude Code skill for browser automation using Playwright. Requires `uv`. And 
 - **Screenshots**: Capture timestamped screenshots
 - **Cookie Management**: List and clear cookies for the current site or all origins
 - **Storage Management**: List and clear localStorage and sessionStorage
+- **Tab Management**: List all open tabs and switch between them
 
 ## Quick Start
 
