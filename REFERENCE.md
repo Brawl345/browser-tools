@@ -1,4 +1,4 @@
-# Playwright Tools
+# Browser Tools
 
 Python scripts for controlling Chrome via Playwright's CDP protocol.
 
@@ -77,6 +77,54 @@ List all cookies for the current site:
 ```bash
 uv run scripts/cookies.py
 ```
+
+#### Clear Cookies
+
+Clear cookies from the browser:
+
+```bash
+uv run scripts/clear-cookies.py
+uv run scripts/clear-cookies.py --all
+```
+
+By default, only cookies for the current page are cleared. Use `--all` to clear all cookies from all origins.
+
+Options:
+- `--all`: Clear all cookies from all origins instead of just the current page
+
+### Storage
+
+List localStorage and/or sessionStorage from the current page:
+
+```bash
+uv run scripts/storage.py
+uv run scripts/storage.py --local
+uv run scripts/storage.py --session
+```
+
+By default, shows both localStorage and sessionStorage.
+
+Options:
+- `--local`: Show localStorage only
+- `--session`: Show sessionStorage only
+- `--all`: Show both (default)
+
+#### Clear Storage
+
+Clear localStorage and/or sessionStorage from the current page:
+
+```bash
+uv run scripts/clear-storage.py
+uv run scripts/clear-storage.py --local
+uv run scripts/clear-storage.py --session
+```
+
+By default, both localStorage and sessionStorage are cleared.
+
+Options:
+- `--local`: Clear localStorage only
+- `--session`: Clear sessionStorage only
+- `--all`: Clear both (default)
 
 ### Pick Elements
 
@@ -211,7 +259,7 @@ Options:
 - `--show-headers`: Show request and response headers
 - `--show-body`: Show request and response bodies (only for fetch/xhr)
 
-## Options
+## Global Options
 
 All scripts support `--port` to specify a custom debugging port (default: 9222):
 

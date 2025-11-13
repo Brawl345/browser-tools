@@ -17,7 +17,8 @@ A Claude Code skill for browser automation using Playwright. Requires `uv`. And 
 - **Network Monitor**: Track HTTP requests with filtering and body inspection
 - **HTML Extraction**: Get page HTML with optional context search
 - **Screenshots**: Capture timestamped screenshots
-- **Cookie Access**: List all cookies for the current site
+- **Cookie Management**: List and clear cookies for the current site or all origins
+- **Storage Management**: List and clear localStorage and sessionStorage
 
 ## Quick Start
 
