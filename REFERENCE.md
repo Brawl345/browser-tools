@@ -137,21 +137,33 @@ uv run scripts/pick.py "Select all product cards"
 
 Returns element information including tag, id, class, text content, HTML, and parent hierarchy.
 
-### Click Element
+### Mouse Actions
 
-Click on an element using a CSS selector:
+Perform various mouse actions on elements using CSS selectors:
 
 ```bash
-uv run scripts/click-element.py "button#submit"
-uv run scripts/click-element.py ".product-card:first-child"
-uv run scripts/click-element.py "a[href='/login']"
-uv run scripts/click-element.py "#hidden-button" --force
-uv run scripts/click-element.py "button.load-more" --timeout 5000
+uv run scripts/mouse.py click "button#submit"
+uv run scripts/mouse.py dblclick ".item"
+uv run scripts/mouse.py hover "nav .menu-item"
+uv run scripts/mouse.py right-click ".context-menu-trigger"
+uv run scripts/mouse.py drag ".draggable" --to ".drop-zone"
+uv run scripts/mouse.py click "#hidden-button" --force
+uv run scripts/mouse.py click "button.load-more" --timeout 5000
+uv run scripts/mouse.py click "button" --delay 100
 ```
 
+Actions:
+- `click`: Left-click on an element
+- `dblclick`: Double-click on an element
+- `hover`: Hover over an element
+- `right-click`: Right-click on an element (opens context menu)
+- `drag`: Drag an element to another element (requires `--to` selector)
+
 Options:
-- `--force`: Force click even if element is not visible or enabled
+- `--to`: Target selector for drag action (required for drag)
+- `--force`: Force action even if element is not visible or enabled
 - `--timeout`: Timeout in milliseconds (default: 10000)
+- `--delay`: Delay between mousedown and mouseup in milliseconds
 
 ### Fill Text Fields
 

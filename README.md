@@ -8,7 +8,7 @@ A Claude Code skill for browser automation using Playwright. Requires `uv`. And 
 - **Navigate**: Open URLs in active or new tabs
 - **Execute JavaScript**: Run inline code or scripts from files
 - **Element Picker**: Interactive DOM element selection
-- **Click Element**: Click on elements using CSS selectors
+- **Mouse Actions**: Click, double-click, hover, right-click, and drag elements
 - **Fill Text Fields**: Fill input and textarea elements with text
 - **Check Elements**: Check/uncheck checkboxes and select radio buttons
 - **Press Key**: Press keyboard keys (Enter, Escape, Tab, etc.)

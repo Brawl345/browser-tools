@@ -42,12 +42,14 @@ uv run scripts/pick.py "Select all product cards"
 
 Returns element information including tag, id, class, text content, HTML, and parent hierarchy.
 
-## Click elements
+## Mouse actions
 
 ```bash
-uv run scripts/click-element.py "button#submit"
-uv run scripts/click-element.py ".product-card:first-child"
-uv run scripts/click-element.py "#hidden-button" --force
+uv run scripts/mouse.py click "button#submit"
+uv run scripts/mouse.py dblclick ".item"
+uv run scripts/mouse.py hover "nav .menu-item"
+uv run scripts/mouse.py right-click ".context-menu-trigger"
+uv run scripts/mouse.py drag ".draggable" --to ".drop-zone"
 ```
 
 ## Fill text fields
