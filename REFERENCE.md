@@ -60,6 +60,8 @@ With `--filter`, the script searches for the regex pattern and outputs matching 
 
 ### Screenshot
 
+NOTE: Prefer `get-html` or `pick` over analyzing screenshots whenever possible to save on token usage. 
+
 Take a screenshot with timestamp:
 
 ```bash
@@ -188,7 +190,7 @@ Options:
 
 ### Network
 
-Capture network requests (XHR, Fetch, etc.):
+Capture network requests (XHR, Fetch, etc.). This script is **blocking** and MUST be started in a background agent.
 
 ```bash
 uv run scripts/network.py
@@ -208,8 +210,6 @@ Options:
 - `--filter`: Filter URLs by regex pattern
 - `--show-headers`: Show request and response headers
 - `--show-body`: Show request and response bodies (only for fetch/xhr)
-- `--no-reload`: Don't reload the page, just listen for new requests (default: false)
-- `--duration`: Duration in seconds to listen when using `--no-reload` (default: 10)
 
 ## Options
 

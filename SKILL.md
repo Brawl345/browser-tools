@@ -95,23 +95,13 @@ uv run scripts/console.py --errors-only
 
 ### Capture network requests
 
+ALWAYS start this script in a background agent. During this time, you can manually interact with the page to trigger network requests. The script then logs all requests made.
+
 ```bash
 uv run scripts/network.py
 uv run scripts/network.py --type fetch --show-body
 uv run scripts/network.py --filter "api\\.example\\.com" --show-headers
 ```
-
-#### "No-reload" mode
-
-In "no-reload" mode, the script will not reload the page automatically. Instead, it will wait for the specified duration to capture network requests.
-
-Start in a background agent:
-
-```bash
-uv run scripts/network.py --no-reload --duration 15
-```
-
-During this time, you can manually interact with the page to trigger network requests. You must make the duration long enough to account for latency in generating the responses from Claude, and the user's ability to approve the commands.
 
 ### Get HTML content
 
