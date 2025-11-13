@@ -220,6 +220,23 @@ The script automatically validates that all files exist before attempting to upl
 Options:
 - `--timeout`: Timeout in milliseconds (default: 30000)
 
+### Download Files
+
+Click a download link or button and save the downloaded file:
+
+```bash
+uv run scripts/download.py "a[href='/report.pdf']"
+uv run scripts/download.py "button#download"
+uv run scripts/download.py ".download-button" --output ~/Documents/report.pdf
+uv run scripts/download.py "a.export" --timeout 60000
+```
+
+By default, files are saved to `~/Downloads/` with their suggested filename. Use `--output` to specify a custom path.
+
+Options:
+- `--output`: Custom output path for the downloaded file (creates parent directories if needed)
+- `--timeout`: Timeout in milliseconds (default: 30000)
+
 ### Select Dropdown
 
 Select an option from a dropdown menu using a CSS selector:

@@ -13,6 +13,7 @@ A Claude Code skill for browser automation using Playwright. Requires `uv`. And 
 - **Check Elements**: Check/uncheck checkboxes and select radio buttons
 - **Press Key**: Press keyboard keys (Enter, Escape, Tab, etc.)
 - **Upload Files**: Upload single or multiple files to file inputs
+- **Download Files**: Click download links/buttons and save files
 - **Select Dropdown**: Choose options from dropdown menus
 - **Console Logs**: Capture browser console messages and errors
 - **Network Monitor**: Track HTTP requests with filtering and body inspection

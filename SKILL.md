@@ -81,6 +81,13 @@ uv run scripts/upload.py "input[type='file']" /path/to/file.pdf
 uv run scripts/upload.py "#file-upload" /path/to/image1.jpg /path/to/image2.png
 ```
 
+## Download files
+
+```bash
+uv run scripts/download.py "a[href='/report.pdf']"
+uv run scripts/download.py "button#download" --output ~/Documents/report.pdf
+```
+
 ## Select dropdown options
 
 ```bash
