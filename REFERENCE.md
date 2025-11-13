@@ -204,6 +204,22 @@ Options:
 - `--selector`: Optional CSS selector to focus before pressing key
 - `--timeout`: Timeout in milliseconds (default: 10000)
 
+### Upload Files
+
+Upload single or multiple files to a file input using a CSS selector:
+
+```bash
+uv run scripts/upload.py "input[type='file']" /path/to/file.pdf
+uv run scripts/upload.py "#file-upload" /path/to/image1.jpg /path/to/image2.png
+uv run scripts/upload.py "input[name='document']" ~/Documents/report.pdf
+uv run scripts/upload.py ".file-input" /path/to/file.txt --timeout 60000
+```
+
+The script automatically validates that all files exist before attempting to upload them. It supports both absolute and relative paths, as well as paths with tilde (~) for home directory.
+
+Options:
+- `--timeout`: Timeout in milliseconds (default: 30000)
+
 ### Select Dropdown
 
 Select an option from a dropdown menu using a CSS selector:

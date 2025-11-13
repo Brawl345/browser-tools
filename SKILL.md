@@ -74,6 +74,13 @@ uv run scripts/press-key.py "Escape"
 uv run scripts/press-key.py "a" --selector "input#search"
 ```
 
+## Upload files
+
+```bash
+uv run scripts/upload.py "input[type='file']" /path/to/file.pdf
+uv run scripts/upload.py "#file-upload" /path/to/image1.jpg /path/to/image2.png
+```
+
 ## Select dropdown options
 
 ```bash
