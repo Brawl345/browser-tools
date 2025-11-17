@@ -36,12 +36,15 @@ uv run scripts/navigate.py https://example.com --new
 
 ### Evaluate
 
+NOTE: Prefer `get-html` or `pick` whenever possible to save on latency and token usage.
+
 Execute JavaScript on the current page. Accepts either inline code or a path to a .js file:
 
 ```bash
 uv run scripts/evaluate.py "document.title"
 uv run scripts/evaluate.py "document.querySelectorAll('a').length"
 uv run scripts/evaluate.py "window.location.href"
+# For multi-line scripts, it's preferable to use a temp file
 uv run scripts/evaluate.py path/to/script.js
 ```
 
