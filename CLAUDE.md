@@ -6,6 +6,21 @@ This folder contains the "browser-tools" skill for Claude, which allows Claude t
 
 Scripts must not block execution and MUST return a result immediately.
 
+## Development
+
+To check python types, run:
+
+```bash
+uv run ty check scripts/
+```
+
+To lint and format code, run:
+
+```bash
+uv run ruff check scripts/
+# Add --fix to automatically fix safe issues
+```
+
 ## References
 
 * [Skills documentation](https://docs.claude.com/en/docs/claude-code/skills)

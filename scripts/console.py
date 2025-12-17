@@ -1,18 +1,8 @@
-#!/usr/bin/env -S uv run --script
-# /// script
-# requires-python = ">=3.11"
-# dependencies = [
-#     "click",
-#     "playwright>=1.56.0",
-#     "rich",
-# ]
-# ///
-
 import asyncio
 import click
 from rich.console import Console
 from rich.style import Style
-from playwright.async_api import async_playwright, ConsoleMessage
+from playwright.async_api import async_playwright
 from browser_utils import get_browser_and_page
 
 console = Console()

@@ -23,6 +23,7 @@ share/python-wheels/
 *.egg
 PYTEST_CACHE/
 .pytest_cache/
+.ruff_cache/
 
 # Virtual environments
 .env

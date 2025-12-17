@@ -40,7 +40,7 @@ Then just mention "use the browser-tools skill to do XY" and Claude should invok
 - uv package manager
 - Chrome/Chromium browser
 
-All dependencies are automatically installed via uv's inline script metadata.
+All dependencies are automatically installed via `uv`.
 
 ## Platform Support
 

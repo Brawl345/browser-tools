@@ -2,6 +2,8 @@
 
 Python scripts for controlling Chrome via Playwright's CDP protocol.
 
+Always change the working directory to the project root before running any script.
+
 ## Prerequisites
 
 Start Chrome with remote debugging:

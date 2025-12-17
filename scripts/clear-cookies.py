@@ -1,12 +1,3 @@
-#!/usr/bin/env -S uv run --script
-# /// script
-# requires-python = ">=3.11"
-# dependencies = [
-#     "click",
-#     "playwright",
-# ]
-# ///
-
 import asyncio
 import click
 from playwright.async_api import async_playwright
@@ -55,7 +46,6 @@ async def clear_cookies(port, clear_all):
                     click.echo("No cookies to clear")
                     return
 
-                cookie_names = [c['name'] for c in cookies]
                 await context.clear_cookies()
                 click.echo(f"Cleared {len(cookies)} cookie(s) for {current_url}")
 

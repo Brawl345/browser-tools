@@ -1,18 +1,8 @@
-#!/usr/bin/env -S uv run --script
-# /// script
-# requires-python = ">=3.11"
-# dependencies = [
-#     "click",
-#     "playwright",
-# ]
-# ///
-
 import asyncio
 import os
 import platform
 import shutil
 import subprocess
-import time
 import click
 from pathlib import Path
 from playwright.async_api import async_playwright
@@ -71,7 +61,6 @@ def get_browser_config():
     elif system == "Windows":
         localappdata = os.environ.get("LOCALAPPDATA", "")
         programfiles = os.environ.get("PROGRAMFILES", "C:\\Program Files")
-        programfiles_x86 = os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)")
 
         return {
             "chrome-stable": {

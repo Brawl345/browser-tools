@@ -5,7 +5,7 @@ description: Interact with a web browser. Can start a browser, connect to it, ev
 
 # Browser Tools
 
-This skill provides various scripts to interact with a web browser. These scripts can be run from anywhere, you only need to use the full path to this file's directory, but NEVER change the working directory. There is also no need to use "sleep" since all scripts will wait automatically.
+This skill provides various scripts to interact with a web browser. There is no need to use "sleep" since all scripts will wait automatically. Always change the working directory to the project root before running any script.
 
 ## Start
 

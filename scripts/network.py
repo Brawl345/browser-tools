@@ -1,18 +1,7 @@
-#!/usr/bin/env -S uv run --script
-# /// script
-# requires-python = ">=3.11"
-# dependencies = [
-#     "click",
-#     "playwright",
-#     "rich",
-# ]
-# ///
-
 import asyncio
 import click
 import re
 from rich.console import Console
-from rich.table import Table
 from playwright.async_api import async_playwright, Request, Response
 from browser_utils import get_browser_and_page
 
@@ -108,17 +97,17 @@ async def capture_network(port, resource_type, show_headers, show_body, url_filt
                     try:
                         body = await response.text()
                         console.print(f"    {body}")
-                    except:
+                    except Exception:
                         try:
                             body_bytes = await response.body()
                             console.print(f"    <binary data, {len(body_bytes)} bytes>")
-                        except:
-                            console.print(f"    <failed to read>")
+                        except Exception:
+                            console.print("    <failed to read>")
 
             page.on("request", handle_request)
             page.on("response", handle_response)
 
-            console.print(f"[bold cyan]Listening for network requests (press Ctrl+C to stop)...[/bold cyan]")
+            console.print("[bold cyan]Listening for network requests (press Ctrl+C to stop)...[/bold cyan]")
 
             try:
                 while True:

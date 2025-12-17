@@ -1,0 +1,17 @@
+[project]
+name = "browser-tools"
+version = "1.0.0"
+description = "Browser tools skill for Claude Code"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.3.1",
+    "playwright>=1.57.0",
+    "rich>=14.2.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.9",
+    "ty>=0.0.2",
+]
