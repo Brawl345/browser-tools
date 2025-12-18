@@ -25,11 +25,17 @@ uv run scripts/navigate.py https://example.com --new
 
 ## Execute JavaScript
 
-NOTE: Prefer `get-html` or `pick` whenever possible to save on token usage. 
+NOTE: Prefer `get-html` or `pick` whenever possible to save on token usage.
 
 ```bash
 uv run scripts/evaluate.py "document.querySelectorAll('a').length"
-# For multi-line scripts, always use a file first
+# For multi-line scripts, use STDIN with heredoc
+uv run scripts/evaluate.py - <<'EOF'
+const elements = document.querySelectorAll('.item');
+elements.forEach(el => el.classList.add('processed'));
+return elements.length;
+EOF
+# Or from a file
 uv run scripts/evaluate.py path/to/script.js
 ```
 

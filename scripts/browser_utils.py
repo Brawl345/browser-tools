@@ -1,9 +1,11 @@
 from playwright.async_api import async_playwright, Browser, Page, BrowserContext
 from typing import Optional
 import click
+import os
 
 
 async def connect_to_browser(port: int = 9222) -> Optional[Browser]:
+    os.environ["NODE_OPTIONS"] = os.environ.get("NODE_OPTIONS", "") + " --no-deprecation"
     p = await async_playwright().start()
     try:
         browser = await p.chromium.connect_over_cdp(f"http://localhost:{port}")

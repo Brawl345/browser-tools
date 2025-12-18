@@ -40,15 +40,28 @@ uv run scripts/navigate.py https://example.com --new
 
 NOTE: Prefer `get-html` or `pick` whenever possible to save on latency and token usage.
 
-Execute JavaScript on the current page. Accepts either inline code or a path to a .js file:
+Execute JavaScript on the current page. Accepts inline code, a path to a .js file, or STDIN input:
 
 ```bash
 uv run scripts/evaluate.py "document.title"
 uv run scripts/evaluate.py "document.querySelectorAll('a').length"
 uv run scripts/evaluate.py "window.location.href"
-# For multi-line scripts, it's preferable to use a temp file
+# For multi-line scripts, use STDIN with heredoc (preferred)
+uv run scripts/evaluate.py - <<'EOF'
+const title = document.querySelector('h1').textContent;
+const links = Array.from(document.querySelectorAll('a')).map(a => a.href);
+return {title, linkCount: links.length};
+EOF
+# Or pipe from echo/other commands
+echo "console.log('test')" | uv run scripts/evaluate.py -
+# Or use a file
 uv run scripts/evaluate.py path/to/script.js
 ```
+
+Options:
+- `-` or no argument: Read JavaScript from STDIN
+- `path/to/file.js`: Read JavaScript from file
+- `"inline code"`: Execute inline JavaScript string
 
 ### Get HTML
 

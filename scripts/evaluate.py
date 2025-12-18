@@ -5,7 +5,7 @@ from playwright.async_api import async_playwright
 from browser_utils import get_browser_and_page
 
 @click.command()
-@click.argument("javascript")
+@click.argument("javascript", required=False)
 @click.option(
     "--port",
     type=int,
@@ -15,11 +15,15 @@ from browser_utils import get_browser_and_page
 def main(javascript, port):
     """Execute JavaScript in an existing Chrome instance.
 
-    JAVASCRIPT can be either inline code or a path to a .js file.
+    JAVASCRIPT can be either inline code, a path to a .js file, or '-' to read from stdin.
+    If no argument is provided, reads from stdin.
     """
-    js_path = Path(javascript)
-    if js_path.is_file():
-        javascript = js_path.read_text()
+    if not javascript or javascript == "-":
+        javascript = click.get_text_stream("stdin").read()
+    else:
+        js_path = Path(javascript)
+        if js_path.is_file():
+            javascript = js_path.read_text()
 
     asyncio.run(evaluate_js(javascript, port))
 
