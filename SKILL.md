@@ -1,11 +1,12 @@
 ---
 name: browser-tools
-description: Interact with a web browser. Can start a browser, connect to it, evaluate JavaScript, make screenshots, read console logs and let the user select DOM elements. Use when interacting with unknown websites (e.g. scraping or Userscripts) or debugging browser-stuff. Requires uv.
+description: Interact with a web browser. Can start a browser, connect to it, evaluate JavaScript, make screenshots, read console logs and let the user select DOM elements. Use when interacting with unknown websites (e.g. scraping or Userscripts) or debugging browser-stuff.
+compatibility: Requires Chrome and uv
 ---
 
 # Browser Tools
 
-This skill provides various scripts to interact with a web browser. There is no need to use "sleep" since all scripts will wait automatically. Always change the working directory to the project root before running any script.
+This skill provides various scripts to interact with a web browser. There is no need to use "sleep" since all scripts will wait automatically. You MUST change the working directory to the project root before running any script.
 
 ## Start
 

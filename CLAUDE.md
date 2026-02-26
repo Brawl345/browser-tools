@@ -21,6 +21,8 @@ uv run ruff check scripts/
 # Add --fix to automatically fix safe issues
 ```
 
+Try to do these for every change.
+
 ## References
 
 * [Skills documentation](https://docs.claude.com/en/docs/claude-code/skills)
