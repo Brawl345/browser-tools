@@ -42,15 +42,19 @@ NOTE: Prefer `get-html` or `pick` whenever possible to save on latency and token
 
 Execute JavaScript on the current page. Accepts inline code, a path to a .js file, or STDIN input:
 
+**IMPORTANT:** Top-level `return` statements cause a `SyntaxError: Illegal return statement`. Always wrap multi-statement scripts in an IIFE so `return` works: `(function() { ...; return result; })()`
+
 ```bash
 uv run scripts/evaluate.py "document.title"
 uv run scripts/evaluate.py "document.querySelectorAll('a').length"
 uv run scripts/evaluate.py "window.location.href"
-# For multi-line scripts, use STDIN with heredoc (preferred)
+# For multi-line scripts, use STDIN with heredoc (preferred) — wrap in IIFE for return statements
 uv run scripts/evaluate.py - <<'EOF'
-const title = document.querySelector('h1').textContent;
-const links = Array.from(document.querySelectorAll('a')).map(a => a.href);
-return {title, linkCount: links.length};
+(function() {
+  const title = document.querySelector('h1').textContent;
+  const links = Array.from(document.querySelectorAll('a')).map(a => a.href);
+  return {title, linkCount: links.length};
+})()
 EOF
 # Or pipe from echo/other commands
 echo "console.log('test')" | uv run scripts/evaluate.py -

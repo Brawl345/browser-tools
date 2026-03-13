@@ -28,13 +28,17 @@ uv run scripts/navigate.py https://example.com --new
 
 NOTE: Prefer `get-html` or `pick` whenever possible to save on token usage.
 
+**IMPORTANT:** Top-level `return` statements cause a `SyntaxError: Illegal return statement`. Always wrap multi-statement scripts in an IIFE: `(function() { ...; return result; })()`
+
 ```bash
 uv run scripts/evaluate.py "document.querySelectorAll('a').length"
-# For multi-line scripts, use STDIN with heredoc
+# For multi-line scripts, use STDIN with heredoc — wrap in IIFE for return statements
 uv run scripts/evaluate.py - <<'EOF'
-const elements = document.querySelectorAll('.item');
-elements.forEach(el => el.classList.add('processed'));
-return elements.length;
+(function() {
+  const elements = document.querySelectorAll('.item');
+  elements.forEach(el => el.classList.add('processed'));
+  return elements.length;
+})()
 EOF
 # Or from a file
 uv run scripts/evaluate.py path/to/script.js
