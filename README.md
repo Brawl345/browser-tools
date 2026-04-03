@@ -4,7 +4,7 @@ A Claude Code skill for browser automation using Playwright. Requires `uv`. And 
 
 ## Features
 
-- **Start Browser**: Launch Chrome with remote debugging enabled
+- **Start Browser**: Launch Chrome with remote debugging enabled, optionally selecting the browser via `--browser` or `BROWSER_TOOLS_BROWSER` (`chrome-stable`, `chrome-beta`, `chrome-dev`, `chrome-canary`)
 - **Navigate**: Open URLs in active or new tabs
 - **Execute JavaScript**: Run inline code or scripts from files
 - **Element Picker**: Interactive DOM element selection

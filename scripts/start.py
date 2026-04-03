@@ -12,7 +12,8 @@ from playwright.async_api import async_playwright
     "--browser",
     type=click.Choice(["chrome-stable", "chrome-beta", "chrome-dev", "chrome-canary"]),
     default="chrome-stable",
-    help="Chrome browser variant to launch (default: chrome-stable)"
+    envvar="BROWSER_TOOLS_BROWSER",
+    help="Chrome browser variant to launch (default: chrome-stable, can also be set via BROWSER_TOOLS_BROWSER)"
 )
 @click.option(
     "--port",
@@ -27,9 +28,10 @@ from playwright.async_api import async_playwright
 )
 def main(browser, port, path):
     """Launch Chrome with remote debugging and verify connection."""
-    if path and browser != "chrome-stable":
-        click.echo("Error: Cannot specify both --browser and --path", err=True)
+    if path and browser is not None:
+        click.echo("Error: Cannot specify both --browser/BROWSER_TOOLS_BROWSER and --path", err=True)
         return
+
     asyncio.run(launch_and_verify(browser, port, path))
 
 def get_browser_config():
@@ -178,7 +180,7 @@ async def launch_and_verify(browser_variant, port, custom_path=None):
                     browser = await p.chromium.connect_over_cdp(f"http://localhost:{port}")
 
                     await browser.close()
-                    click.echo(f"{config['app_name']} successfully started")
+                    click.echo(f"{app_name} successfully started")
                     break
 
                 except Exception as e:
