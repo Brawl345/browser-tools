@@ -2,7 +2,7 @@
 
 Python scripts for controlling Chrome via Playwright's CDP protocol.
 
-Always change the working directory to the project root before running any script.
+Always change the working directory to this skill's base dir before running any script.
 
 ## Prerequisites
 

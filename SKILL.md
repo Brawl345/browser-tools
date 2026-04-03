@@ -6,7 +6,7 @@ compatibility: Requires Chrome and uv
 
 # Browser Tools
 
-This skill provides various scripts to interact with a web browser. There is no need to use "sleep" since all scripts will wait automatically. You MUST change the working directory to the project root before running any script.
+This skill provides various scripts to interact with a web browser. There is no need to use "sleep" since all scripts will wait automatically. You MUST change the working directory to this skill's base dir before running any script.
 
 ## Start
 
