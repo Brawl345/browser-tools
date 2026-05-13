@@ -1,57 +1,51 @@
 # Browser Tools
 
-A Claude Code skill for browser automation using Playwright. Requires `uv`. And yes, this was coded by Claude Code. Inspired by [this blogpost](https://mariozechner.at/posts/2025-11-02-what-if-you-dont-need-mcp/).
+A coding agent skill for browser automation using Go and the Chrome DevTools Protocol. And yes, this was coded by an AI. Inspired by [this blogpost](https://mariozechner.at/posts/2025-11-02-what-if-you-dont-need-mcp/).
 
 ## Features
 
-- **Start Browser**: Launch Chrome with remote debugging enabled, optionally selecting the browser via `--browser` or `BROWSER_TOOLS_BROWSER` (`chrome-stable`, `chrome-beta`, `chrome-dev`, `chrome-canary`)
-- **Navigate**: Open URLs in active or new tabs
-- **Execute JavaScript**: Run inline code or scripts from files
+- **Start Browser**: Launch Chrome with remote debugging, selectable via `--browser` or `BROWSER_TOOLS_BROWSER` (`chrome-stable`, `chrome-beta`, `chrome-dev`, `chrome-canary`)
+- **Navigate**: Open URLs in the active or a new tab
+- **Execute JavaScript**: Run inline code, files, or STDIN input
 - **Element Picker**: Interactive DOM element selection
-- **Mouse Actions**: Click, double-click, hover, right-click, and drag elements
-- **Fill Text Fields**: Fill input and textarea elements with text
+- **Mouse Actions**: Click, double-click, hover, right-click, and drag
+- **Fill Text Fields**: Fill input and textarea elements
 - **Check Elements**: Check/uncheck checkboxes and select radio buttons
-- **Press Key**: Press keyboard keys (Enter, Escape, Tab, etc.)
-- **Upload Files**: Upload single or multiple files to file inputs
+- **Press Key**: Simulate key presses (Enter, Escape, Tab, etc.)
+- **Upload Files**: Set files on file inputs (works on hidden inputs)
 - **Download Files**: Click download links/buttons and save files
-- **Select Dropdown**: Choose options from dropdown menus
+- **Select Dropdown**: Choose options by value, label, or index
 - **Console Logs**: Capture browser console messages and errors
 - **Network Monitor**: Track HTTP requests with filtering and body inspection
-- **HTML Extraction**: Get page HTML with optional context search
-- **Screenshots**: Capture timestamped screenshots
-- **Cookie Management**: List and clear cookies for the current site or all origins
-- **Storage Management**: List and clear localStorage and sessionStorage
-- **Tab Management**: List all open tabs and switch between them
+- **HTML Extraction**: Get page HTML with optional regex filtering
+- **Screenshots**: Viewport or full-page screenshots saved to `/tmp`
+- **Cookie Management**: List and clear cookies per tab or all origins
+- **DOM Storage**: Inspect and clear localStorage / sessionStorage
+- **Clear Browser Data**: Wipe cache, cookies, IndexedDB, service workers, and more
+- **Tab Management**: List (with active tab indicator), activate, close, and refresh tabs
 
 ## Quick Start
 
-Clone this directory into your [Claude skills directory](https://code.claude.com/docs/en/skills). I won't bother making a plugin.
+Build the binary:
 
-Then just mention "use the browser-tools skill to do XY" and Claude should invoke it automatically. It's recommended to set `CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR` to `1` in your [environment](https://code.claude.com/docs/en/settings#environment-variables).
+```bash
+go build -o scripts/browser-tools .
+```
+
+Then mention "use the browser-tools skill" and the agent will invoke it automatically.
 
 ## Documentation
 
-- **[SKILL.md](SKILL.md)** - Quick reference for Claude
-- **[REFERENCE.md](REFERENCE.md)** - Complete API documentation, read by Claude when needing more context
+- **[SKILL.md](SKILL.md)** — Quick reference for agents
+- **[REFERENCE.md](REFERENCE.md)** — Full command documentation
 
 ## Requirements
 
-- Python 3.11+
-- uv package manager
+- Go 1.21+
 - Chrome/Chromium browser
 
-All dependencies are automatically installed via `uv`.
+## User Profile
 
-## Platform Support
+Remote debugging is not allowed in the main Chrome profile, so a separate one is created and reused per variant:
 
-- macOS: Chrome variants in `/Applications/`
-- Windows: Chrome in `%PROGRAMFILES%` or `%LOCALAPPDATA%`
-- Linux: Chrome via `which` or `/usr/bin/`
-
-## User Profile Location
-
-Remote debugging is not allowed in the main Chrome profile so a new one is created and re-used everytime. It's stored
-here, per Chrome variant:
-
-- macOS/Linux: `~/.cache/claude-browser-tools/<variant>/`
-- Windows: `%LOCALAPPDATA%\claude-browser-tools\<variant>\`
+- `~/.cache/claude-browser-tools/<variant>/`

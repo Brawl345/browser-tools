@@ -1,360 +1,320 @@
-# Browser Tools
+# Browser Tools Reference
 
-Python scripts for controlling Chrome via Playwright's CDP protocol.
-
-Always change the working directory to this skill's base dir before running any script.
+Go binary for controlling Chrome via the Chrome DevTools Protocol.
 
 ## Prerequisites
 
 Start Chrome with remote debugging:
 
 ```bash
-uv run scripts/start.py
+./scripts/browser-tools start
 ```
 
-There is no need to use "sleep" or equivalents since the scripts already try connecting multiple times with backoff.
-
-To use a custom browser executable:
+Every command starts the browser automatically if it isn't running yet. No need for explicit sleeps - commands wait for elements automatically.
 
 ```bash
-uv run scripts/start.py --path /path/to/chromium
-# or use an environment variable:
-BROWSER_TOOLS_BROWSER=chrome-canary uv run scripts/start.p
+# Use a specific browser variant or port
+./scripts/browser-tools --browser chrome-canary --port 9222 start
+# Or via environment variable
+BROWSER_TOOLS_BROWSER=chrome-canary ./scripts/browser-tools start
 ```
 
-**Platform Support:**
-- **macOS**: Chrome variants installed in `/Applications/`
-- **Windows**: Chrome variants in `%PROGRAMFILES%` or `%LOCALAPPDATA%`
-- **Linux**: Chrome variants detected via `which` or in `/usr/bin/`
+## Global Options
 
-## Scripts
+All commands accept these flags **before** the command name:
 
-### Navigate
+| Flag | Default | Description |
+|---|---|---|
+| `--browser` | `chrome-canary` | Browser variant: `chrome-stable`, `chrome-beta`, `chrome-dev`, `chrome-canary` |
+| `--port` | `9222` | Remote debugging port |
+| `--timeout` | `10s` | Timeout for commands that wait on elements (e.g. `30s`, `500ms`, `2m`) |
+
+---
+
+## Commands
+
+### navigate
 
 Navigate to a URL in the active tab or open in a new tab:
 
 ```bash
-uv run scripts/navigate.py https://example.com
-uv run scripts/navigate.py https://example.com --new
+./scripts/browser-tools navigate https://example.com
+./scripts/browser-tools navigate https://example.com --new-tab
 ```
 
-### Evaluate
+### evaluate-js
 
-NOTE: Prefer `get-html` or `pick` whenever possible to save on latency and token usage.
+NOTE: Prefer `html` or `pick-element` whenever possible to save on token usage.
 
-Execute JavaScript on the current page. Accepts inline code, a path to a .js file, or STDIN input:
+Execute JavaScript on the current page. Accepts inline code, a path to a `.js` file, or `-` to read from STDIN.
 
-**IMPORTANT:** Top-level `return` statements cause a `SyntaxError: Illegal return statement`. Always wrap multi-statement scripts in an IIFE so `return` works: `(function() { ...; return result; })()`
+**IMPORTANT:** Top-level `return` statements cause a `SyntaxError`. Always wrap multi-statement scripts in an IIFE: `(function() { ...; return result; })()`
 
 ```bash
-uv run scripts/evaluate.py "document.title"
-uv run scripts/evaluate.py "document.querySelectorAll('a').length"
-uv run scripts/evaluate.py "window.location.href"
-# For multi-line scripts, use STDIN with heredoc (preferred) — wrap in IIFE for return statements
-uv run scripts/evaluate.py - <<'EOF'
+./scripts/browser-tools evaluate-js "document.title"
+./scripts/browser-tools evaluate-js "document.querySelectorAll('a').length"
+# Multi-line via heredoc
+./scripts/browser-tools evaluate-js - <<'EOF'
 (function() {
   const title = document.querySelector('h1').textContent;
   const links = Array.from(document.querySelectorAll('a')).map(a => a.href);
   return {title, linkCount: links.length};
 })()
 EOF
-# Or pipe from echo/other commands
-echo "console.log('test')" | uv run scripts/evaluate.py -
-# Or use a file
-uv run scripts/evaluate.py path/to/script.js
+# From a file
+./scripts/browser-tools evaluate-js path/to/script.js
+```
+
+### html
+
+Get the full HTML content of the current page, optionally filtered with a regex:
+
+```bash
+./scripts/browser-tools html
+./scripts/browser-tools html --filter "<button.*submit.*>"
+./scripts/browser-tools html --filter "data-id=\"\d+\"" --lines 10
+```
+
+With `--filter`, matching lines are shown with surrounding context (default: 5 lines before/after).
+
+Options:
+- `--filter <regex>`: Filter output by regex pattern
+- `--lines <n>`: Number of context lines around each match (default: 5)
+
+### screenshot
+
+NOTE: Prefer `html` or `pick-element` over screenshots whenever possible to save on token usage.
+
+Take a screenshot saved to `/tmp/screenshot-YYYYMMDD-HHMMSS.png`. Prints the path to stdout.
+
+```bash
+./scripts/browser-tools screenshot
+./scripts/browser-tools screenshot --full-page
 ```
 
 Options:
-- `-` or no argument: Read JavaScript from STDIN
-- `path/to/file.js`: Read JavaScript from file
-- `"inline code"`: Execute inline JavaScript string
+- `--full-page`: Capture the entire page, not just the viewport
 
-### Get HTML
+### cookie
 
-Get the full HTML content of the current page, or filter with regex:
+List cookies for the current tab:
 
 ```bash
-uv run scripts/get-html.py
-uv run scripts/get-html.py --filter "search-string"
-uv run scripts/get-html.py --filter "<button.*submit.*>"
-uv run scripts/get-html.py --filter "data-id=\"\d+\"" --lines 10
+./scripts/browser-tools cookie
+./scripts/browser-tools cookie --all
 ```
-
-With `--filter`, the script searches for the regex pattern and outputs matching lines with surrounding context (default: 5 lines before and after).
-
-### Screenshot
-
-NOTE: Prefer `get-html` or `pick` over analyzing screenshots whenever possible to save on token usage. 
-
-Take a screenshot with timestamp:
-
-```bash
-uv run scripts/screenshot.py
-```
-
-Screenshots are saved to the system temp directory as `screenshot_YYYYMMDD_HHMMSS.png`.
-
-### Cookies
-
-List all cookies for the current site:
-
-```bash
-uv run scripts/cookies.py
-```
-
-#### Clear Cookies
-
-Clear cookies from the browser:
-
-```bash
-uv run scripts/clear-cookies.py
-uv run scripts/clear-cookies.py --all
-```
-
-By default, only cookies for the current page are cleared. Use `--all` to clear all cookies from all origins.
 
 Options:
-- `--all`: Clear all cookies from all origins instead of just the current page
+- `--all`: List cookies from all origins (not just the current tab's URL)
 
-### Storage
+### clear
 
-List localStorage and/or sessionStorage from the current page:
+Clear various types of browser data.
 
 ```bash
-uv run scripts/storage.py
-uv run scripts/storage.py --local
-uv run scripts/storage.py --session
+# Clear everything for the current origin
+./scripts/browser-tools clear --all
+# Individual types
+./scripts/browser-tools clear --cookies
+./scripts/browser-tools clear --cache
+./scripts/browser-tools clear --local-storage
+./scripts/browser-tools clear --session-storage
+./scripts/browser-tools clear --indexeddb
+./scripts/browser-tools clear --cache-storage
+./scripts/browser-tools clear --service-workers
+# All origins (applies to cookies; cache is always browser-wide; storage is always per-origin)
+./scripts/browser-tools clear --all --all-origins
 ```
 
-By default, shows both localStorage and sessionStorage.
+Options:
+- `--cookies`: Clear cookies
+- `--cache`: Clear HTTP cache (always browser-wide)
+- `--local-storage`: Clear localStorage for the current origin
+- `--session-storage`: Clear sessionStorage for the current origin
+- `--indexeddb`: Clear IndexedDB for the current origin
+- `--cache-storage`: Clear Cache API / service worker caches for the current origin
+- `--service-workers`: Unregister service workers for the current origin
+- `--all`: Shorthand for all of the above
+- `--all-origins`: For cookies: clear from all origins; for cache: already global; storage is always per-origin
+
+### dom-storage
+
+Show localStorage and/or sessionStorage for the current tab:
+
+```bash
+./scripts/browser-tools dom-storage
+./scripts/browser-tools dom-storage --local
+./scripts/browser-tools dom-storage --session
+```
 
 Options:
 - `--local`: Show localStorage only
-- `--session`: Show sessionStorage only
-- `--all`: Show both (default)
+- `--session`: Show sessionStorage only (mutually exclusive with `--local`)
 
-#### Clear Storage
+### pick-element
 
-Clear localStorage and/or sessionStorage from the current page:
+Interactive element picker. Click to select, Cmd/Ctrl+Click for multi-select, Enter to confirm, Escape to cancel:
 
 ```bash
-uv run scripts/clear-storage.py
-uv run scripts/clear-storage.py --local
-uv run scripts/clear-storage.py --session
+./scripts/browser-tools pick-element "Click the submit button"
+./scripts/browser-tools pick-element "Select all product cards"
 ```
 
-By default, both localStorage and sessionStorage are cleared.
+Returns tag, id, class, text content, HTML, and parent hierarchy for each selected element.
 
-Options:
-- `--local`: Clear localStorage only
-- `--session`: Clear sessionStorage only
-- `--all`: Clear both (default)
+### mouse
 
-### Pick Elements
-
-Interactive element picker for scraping. Click to select, Cmd/Ctrl+Click for multi-select, Enter to finish:
+Simulate mouse actions on elements using CSS selectors:
 
 ```bash
-uv run scripts/pick.py "Click the submit button"
-uv run scripts/pick.py "Select all product cards"
-```
-
-Returns element information including tag, id, class, text content, HTML, and parent hierarchy.
-
-### Mouse Actions
-
-Perform various mouse actions on elements using CSS selectors:
-
-```bash
-uv run scripts/mouse.py click "button#submit"
-uv run scripts/mouse.py dblclick ".item"
-uv run scripts/mouse.py hover "nav .menu-item"
-uv run scripts/mouse.py right-click ".context-menu-trigger"
-uv run scripts/mouse.py drag ".draggable" --to ".drop-zone"
-uv run scripts/mouse.py click "#hidden-button" --force
-uv run scripts/mouse.py click "button.load-more" --timeout 5000
-uv run scripts/mouse.py click "button" --delay 100
+./scripts/browser-tools mouse click "button#submit"
+./scripts/browser-tools mouse dblclick ".item"
+./scripts/browser-tools mouse hover "nav .menu-item"
+./scripts/browser-tools mouse right-click ".context-menu-trigger"
+./scripts/browser-tools mouse drag ".draggable" --to ".drop-zone"
+# Force JS event dispatch for hidden/non-visible elements
+./scripts/browser-tools mouse click "#hidden-button" --force
 ```
 
 Actions:
-- `click`: Left-click on an element
-- `dblclick`: Double-click on an element
-- `hover`: Hover over an element
-- `right-click`: Right-click on an element (opens context menu)
-- `drag`: Drag an element to another element (requires `--to` selector)
+- `click`: Left-click
+- `dblclick`: Double-click
+- `hover`: Move mouse over element
+- `right-click`: Right-click (opens context menu)
+- `drag`: Drag to another element (requires `--to`)
 
 Options:
-- `--to`: Target selector for drag action (required for drag)
-- `--force`: Force action even if element is not visible or enabled
-- `--timeout`: Timeout in milliseconds (default: 10000)
-- `--delay`: Delay between mousedown and mouseup in milliseconds
+- `--to <selector>`: Target selector for drag (required for drag)
+- `--force`: Dispatch JS mouse events even if element is not visible
 
-### Fill Text Fields
+### fill
 
-Fill input or textarea elements with text using a CSS selector:
+Fill an input or textarea with text:
 
 ```bash
-uv run scripts/fill.py "input#username" "john_doe"
-uv run scripts/fill.py "textarea#comment" "Hello, world!"
-uv run scripts/fill.py "input[name='email']" "user@example.com" --clear
-uv run scripts/fill.py "input.search" "search query" --timeout 5000
+./scripts/browser-tools fill "input#username" "john_doe"
+./scripts/browser-tools fill "textarea#comment" "Hello, world!"
+./scripts/browser-tools fill "input[name='email']" "user@example.com" --clear
 ```
 
 Options:
-- `--clear`: Clear the field before filling
-- `--timeout`: Timeout in milliseconds (default: 10000)
+- `--clear`: Clear the field before typing
 
-### Check/Uncheck Elements
+### check
 
-Check or uncheck checkboxes and select radio buttons using a CSS selector:
+Check or uncheck a checkbox, or select a radio button:
 
 ```bash
-uv run scripts/check.py "input#accept-terms"
-uv run scripts/check.py "input[name='newsletter']" --uncheck
-uv run scripts/check.py "input[type='radio'][value='option1']"
-uv run scripts/check.py "#hidden-checkbox" --force
-uv run scripts/check.py "input.terms" --timeout 5000
+./scripts/browser-tools check "input#accept-terms"
+./scripts/browser-tools check "input[name='newsletter']" --uncheck
+./scripts/browser-tools check "input[type='radio'][value='option1']"
+# Force for hidden elements (uses JS)
+./scripts/browser-tools check "#hidden-checkbox" --force
 ```
 
 Options:
-- `--uncheck`: Uncheck the checkbox (only works for checkboxes, not radio buttons)
-- `--force`: Force check even if element is not visible or enabled
-- `--timeout`: Timeout in milliseconds (default: 10000)
+- `--uncheck`: Uncheck the element (checkboxes only — cannot uncheck radio buttons)
+- `--force`: Set value via JS even if element is not visible
 
-### Press Key
+### key
 
-Press keyboard keys (Enter, Escape, Tab, etc.):
+Simulate a key press, optionally on a focused element:
 
 ```bash
-uv run scripts/press-key.py "Enter"
-uv run scripts/press-key.py "Escape"
-uv run scripts/press-key.py "Tab"
-uv run scripts/press-key.py "a"
-uv run scripts/press-key.py "a" --selector "input#search"
-uv run scripts/press-key.py "Enter" --timeout 5000
+./scripts/browser-tools key "Enter"
+./scripts/browser-tools key "Escape"
+./scripts/browser-tools key "Tab"
+./scripts/browser-tools key "a" --selector "input#search"
 ```
 
-Common keys: Enter, Escape, Tab, Backspace, Delete, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, or any single character.
+Common keys: `Enter`, `Escape`, `Tab`, `Backspace`, `Delete`, `ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown`, or any single character.
 
 Options:
-- `--selector`: Optional CSS selector to focus before pressing key
-- `--timeout`: Timeout in milliseconds (default: 10000)
+- `--selector <sel>`: CSS selector to focus before pressing the key
 
-### Upload Files
+### upload
 
-Upload single or multiple files to a file input using a CSS selector:
+Set files on a file input element. Works on hidden inputs too:
 
 ```bash
-uv run scripts/upload.py "input[type='file']" /path/to/file.pdf
-uv run scripts/upload.py "#file-upload" /path/to/image1.jpg /path/to/image2.png
-uv run scripts/upload.py "input[name='document']" ~/Documents/report.pdf
-uv run scripts/upload.py ".file-input" /path/to/file.txt --timeout 60000
+./scripts/browser-tools upload "input[type='file']" /path/to/file.pdf
+./scripts/browser-tools upload "#file-upload" /path/to/image1.jpg /path/to/image2.png
 ```
 
-The script automatically validates that all files exist before attempting to upload them. It supports both absolute and relative paths, as well as paths with tilde (~) for home directory.
+All file paths are validated to exist before the upload is attempted. Relative paths are resolved to absolute automatically.
 
-Options:
-- `--timeout`: Timeout in milliseconds (default: 30000)
+### download
 
-### Download Files
-
-Click a download link or button and save the downloaded file:
+Click a download link or button and save the file. Use `--timeout` for large files:
 
 ```bash
-uv run scripts/download.py "a[href='/report.pdf']"
-uv run scripts/download.py "button#download"
-uv run scripts/download.py ".download-button" --output ~/Documents/report.pdf
-uv run scripts/download.py "a.export" --timeout 60000
+./scripts/browser-tools --timeout 60s download "a[href='/report.pdf']"
+./scripts/browser-tools --timeout 60s download "button#download" --output ~/Documents/report.pdf
 ```
 
-By default, files are saved to `~/Downloads/` with their suggested filename. Use `--output` to specify a custom path.
+By default, files are saved to `~/Downloads/<suggested filename>`. Prints the final path to stdout.
 
 Options:
-- `--output`: Custom output path for the downloaded file (creates parent directories if needed)
-- `--timeout`: Timeout in milliseconds (default: 30000)
+- `--output <path>`: Custom output path (parent directories are created if needed)
 
-### Select Dropdown
+### select
 
-Select an option from a dropdown menu using a CSS selector:
+Select an option from a `<select>` dropdown:
 
 ```bash
-uv run scripts/select-dropdown.py "select#country" "US"
-uv run scripts/select-dropdown.py "select[name='color']" "Red" --by-label
-uv run scripts/select-dropdown.py "#quantity" "2" --by-index
-uv run scripts/select-dropdown.py "select.product-options" "medium" --timeout 5000
+./scripts/browser-tools select "select#country" "US"
+./scripts/browser-tools select "select[name='color']" "Red" --by-label
+./scripts/browser-tools select "#quantity" "2" --by-index
+# Force for hidden elements
+./scripts/browser-tools select "select.hidden" "opt1" --force
 ```
 
 Options:
 - `--by-label`: Select by visible label text instead of value attribute
-- `--by-index`: Select by zero-based index position
-- `--timeout`: Timeout in milliseconds (default: 10000)
+- `--by-index`: Select by 0-based index
+- `--force`: Apply even if element is not visible
 
-### Console
+### console
 
-Get browser console messages and page errors (up to 200 most recent messages):
-
-```bash
-uv run scripts/console.py
-uv run scripts/console.py --errors-only
-```
-
-The script displays:
-- Console messages (log, info, warning, error, debug) with color coding
-- Source location (file, line, column) for each message
-
-Options:
-- `--errors-only`: Only show errors and warnings
-
-### Network
-
-Capture network requests (XHR, Fetch, etc.). This script is **blocking** and MUST be started in a background agent.
+Get browser console messages from the current tab:
 
 ```bash
-uv run scripts/network.py
-uv run scripts/network.py --type fetch
-uv run scripts/network.py --type xhr --show-body
-uv run scripts/network.py --filter "api\\.example\\.com"
-uv run scripts/network.py --no-reload --duration 10
+./scripts/browser-tools console
+./scripts/browser-tools console --errors-only
 ```
 
-The script displays:
-- HTTP method, status code, resource type, and URL for each request
-- Request and response headers with `--show-headers`
-- Request and response bodies (for fetch/xhr only) with `--show-body`
+Options:
+- `--errors-only`: Only show errors and exceptions
+
+### network
+
+Capture network requests. **Blocking** — runs until Ctrl+C. Always run in a tmux pane.
+
+```bash
+./scripts/browser-tools network
+./scripts/browser-tools network --type fetch
+./scripts/browser-tools network --type xhr --show-body
+./scripts/browser-tools network --filter "api\.example\.com" --show-headers
+```
 
 Options:
-- `--type`: Filter by resource type (all, xhr, fetch, document, script, stylesheet, image, font, media)
-- `--filter`: Filter URLs by regex pattern
+- `--type <t>`: Filter by resource type: `all`, `xhr`, `fetch`, `document`, `script`, `stylesheet`, `image`, `font`, `media`, `websocket`, `other` (default: `all`)
+- `--filter <regex>`: Filter URLs by regex pattern
 - `--show-headers`: Show request and response headers
-- `--show-body`: Show request and response bodies (only for fetch/xhr)
+- `--show-body`: Show response body (xhr/fetch only)
 
-### Tabs
+### tab
 
-List all open tabs and their URLs, switch to a specific tab, or close a tab by index:
+List, activate, close, or refresh tabs. The active tab is marked with `▶`:
 
 ```bash
-uv run scripts/tabs.py
-uv run scripts/tabs.py --switch 0
-uv run scripts/tabs.py --close 1
+./scripts/browser-tools tab
+./scripts/browser-tools tab --activate 2
+./scripts/browser-tools tab --close 3
+./scripts/browser-tools tab --refresh 1
 ```
-
-The script displays:
-- Tab index (0-based)
-- Tab title
-- Tab URL
-
-When switching tabs, the specified tab is brought to the front, which makes `get_active_page()` return that tab for subsequent operations.
 
 Options:
-- `--switch`: Tab index to switch to (0-based)
-- `--close`: Tab index to close (0-based)
-- If neither option is provided, lists all tabs instead
-- Cannot use `--switch` and `--close` together
-
-## Global Options
-
-All scripts support `--port` to specify a custom debugging port (default: 9222):
-
-```bash
-uv run scripts/navigate.py https://example.com --port 9223
-```
+- `--activate <n>`: Activate tab by 1-based index
+- `--close <n>`: Close tab by 1-based index
+- `--refresh <n>`: Refresh tab by 1-based index

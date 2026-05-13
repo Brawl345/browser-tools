@@ -1,114 +1,124 @@
 ---
 name: browser-tools
 description: Interact with a web browser. Can start a browser, connect to it, evaluate JavaScript, make screenshots, read console logs and let the user select DOM elements. Use when interacting with unknown websites (e.g. scraping or Userscripts) or debugging browser-stuff.
-compatibility: Requires Chrome and uv
+compatibility: Requires Chrome
 ---
 
 # Browser Tools
 
-This skill provides various scripts to interact with a web browser. There is no need to use "sleep" since all scripts will wait automatically. You MUST change the working directory to this skill's base dir before running any script.
+This skill provides a compiled Go binary (`browser-tools`) to interact with a web browser via Chrome DevTools Protocol. Commands automatically wait for elements and start the browser if needed. The binary is located at the skill's base dir.
+
+**IMPORTANT:** Always prefix the binary path when running commands:
+
+```bash
+./scripts/browser-tools <command> [options]
+```
 
 ## Start
 
-Always start Chrome with remote debugging first:
+Start Chrome with remote debugging (done automatically by every command, but can be done explicitly):
 
 ```bash
-uv run scripts/start.py
+./scripts/browser-tools start
 ```
 
 ## Navigate to a web page
 
 ```bash
-uv run scripts/navigate.py https://example.com
-# or open a new tab
-uv run scripts/navigate.py https://example.com --new
+./scripts/browser-tools navigate https://example.com
+# Open in a new tab
+./scripts/browser-tools navigate https://example.com --new-tab
 ```
 
 ## Execute JavaScript
 
-NOTE: Prefer `get-html` or `pick` whenever possible to save on token usage.
+NOTE: Prefer `html` or `pick-element` whenever possible to save on token usage.
 
-**IMPORTANT:** Top-level `return` statements cause a `SyntaxError: Illegal return statement`. Always wrap multi-statement scripts in an IIFE: `(function() { ...; return result; })()`
+**IMPORTANT:** Top-level `return` statements cause a `SyntaxError`. Always wrap multi-statement scripts in an IIFE: `(function() { ...; return result; })()`
 
 ```bash
-uv run scripts/evaluate.py "document.querySelectorAll('a').length"
-# For multi-line scripts, use STDIN with heredoc — wrap in IIFE for return statements
-uv run scripts/evaluate.py - <<'EOF'
+./scripts/browser-tools evaluate-js "document.querySelectorAll('a').length"
+# Multi-line via heredoc
+./scripts/browser-tools evaluate-js - <<'EOF'
 (function() {
   const elements = document.querySelectorAll('.item');
-  elements.forEach(el => el.classList.add('processed'));
   return elements.length;
 })()
 EOF
-# Or from a file
-uv run scripts/evaluate.py path/to/script.js
+# From a file
+./scripts/browser-tools evaluate-js path/to/script.js
 ```
 
 ## Pick DOM elements
 
-Use an interactive element picker to instruct the user to pick DOM elements that should be debugged or shown:
+Instruct the user to interactively pick a DOM element:
 
 ```bash
-uv run scripts/pick.py "Click the submit button"
-uv run scripts/pick.py "Select all product cards"
+./scripts/browser-tools pick-element "Click the submit button"
+./scripts/browser-tools pick-element "Select all product cards"
 ```
 
-Returns element information including tag, id, class, text content, HTML, and parent hierarchy.
+Returns tag, id, class, text content, HTML, and parent hierarchy.
 
 ## Mouse actions
 
 ```bash
-uv run scripts/mouse.py click "button#submit"
-uv run scripts/mouse.py dblclick ".item"
-uv run scripts/mouse.py hover "nav .menu-item"
-uv run scripts/mouse.py right-click ".context-menu-trigger"
-uv run scripts/mouse.py drag ".draggable" --to ".drop-zone"
+./scripts/browser-tools mouse click "button#submit"
+./scripts/browser-tools mouse dblclick ".item"
+./scripts/browser-tools mouse hover "nav .menu-item"
+./scripts/browser-tools mouse right-click ".context-menu-trigger"
+./scripts/browser-tools mouse drag ".draggable" --to ".drop-zone"
+# Force JS dispatch for hidden elements
+./scripts/browser-tools mouse click ".hidden-btn" --force
 ```
 
 ## Fill text fields
 
 ```bash
-uv run scripts/fill.py "input#username" "john_doe"
-uv run scripts/fill.py "textarea#comment" "Hello, world!" --clear
-uv run scripts/fill.py "input[name='email']" "user@example.com"
+./scripts/browser-tools fill "input#username" "john_doe"
+./scripts/browser-tools fill "textarea#comment" "Hello, world!" --clear
 ```
 
-## Check/uncheck checkboxes
+## Check/uncheck checkboxes and radio buttons
 
 ```bash
-uv run scripts/check.py "input#accept-terms"
-uv run scripts/check.py "input[name='newsletter']" --uncheck
-uv run scripts/check.py "input[type='radio'][value='option1']"
+./scripts/browser-tools check "input#accept-terms"
+./scripts/browser-tools check "input[name='newsletter']" --uncheck
+./scripts/browser-tools check "input[type='radio'][value='option1']"
+# Force for hidden elements
+./scripts/browser-tools check "input#hidden" --force
 ```
 
 ## Press keyboard keys
 
+Common keys: `Enter`, `Escape`, `Tab`, `Backspace`, `Delete`, `ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown`
+
 ```bash
-uv run scripts/press-key.py "Enter"
-uv run scripts/press-key.py "Escape"
-uv run scripts/press-key.py "a" --selector "input#search"
+./scripts/browser-tools key "Enter"
+./scripts/browser-tools key "Escape"
+./scripts/browser-tools key "a" --selector "input#search"
 ```
 
 ## Upload files
 
 ```bash
-uv run scripts/upload.py "input[type='file']" /path/to/file.pdf
-uv run scripts/upload.py "#file-upload" /path/to/image1.jpg /path/to/image2.png
+./scripts/browser-tools upload "input[type='file']" /path/to/file.pdf
+./scripts/browser-tools upload "#file-upload" /path/to/image1.jpg /path/to/image2.png
 ```
 
 ## Download files
 
 ```bash
-uv run scripts/download.py "a[href='/report.pdf']"
-uv run scripts/download.py "button#download" --output ~/Documents/report.pdf
+./scripts/browser-tools --timeout 60s download "a[href='/report.pdf']"
+./scripts/browser-tools --timeout 60s download "button#download" --output ~/Documents/report.pdf
 ```
 
 ## Select dropdown options
 
 ```bash
-uv run scripts/select-dropdown.py "select#country" "US"
-uv run scripts/select-dropdown.py "select[name='color']" "Red" --by-label
-uv run scripts/select-dropdown.py "#quantity" "2" --by-index
+./scripts/browser-tools select "select#country" "US"
+./scripts/browser-tools select "select[name='color']" "Red" --by-label
+./scripts/browser-tools select "#quantity" "2" --by-index
 ```
 
 ## Cookies
@@ -116,66 +126,102 @@ uv run scripts/select-dropdown.py "#quantity" "2" --by-index
 ### List cookies
 
 ```bash
-uv run scripts/cookies.py
+./scripts/browser-tools cookie
+# All cookies from all origins
+./scripts/browser-tools cookie --all
 ```
 
 ### Clear cookies
 
 ```bash
-uv run scripts/clear-cookies.py
+./scripts/browser-tools clear --cookies
+# All origins
+./scripts/browser-tools clear --cookies --all-origins
 ```
 
 ## Local/Session storage
 
-### List storage items
+### Show storage
 
 ```bash
-uv run scripts/storage.py
+./scripts/browser-tools dom-storage
+./scripts/browser-tools dom-storage --local
+./scripts/browser-tools dom-storage --session
 ```
 
-### Clear local/session storage
+### Clear storage
 
 ```bash
-uv run scripts/clear-storage.py
+./scripts/browser-tools clear --local-storage
+./scripts/browser-tools clear --session-storage
+```
+
+## Clear browser data
+
+```bash
+# Clear everything for the current origin
+./scripts/browser-tools clear --all
+# Individual types
+./scripts/browser-tools clear --cookies --cache
+./scripts/browser-tools clear --local-storage --session-storage --indexeddb
+./scripts/browser-tools clear --cache-storage --service-workers
+# All origins (cookies and cache only — storage is always per-origin)
+./scripts/browser-tools clear --all --all-origins
 ```
 
 ## Get console messages
 
 ```bash
-uv run scripts/console.py
-uv run scripts/console.py --errors-only
+./scripts/browser-tools console
+./scripts/browser-tools console --errors-only
 ```
 
 ## Capture network requests
 
-ALWAYS start this script in a background agent. During this time, you can manually interact with the page to trigger network requests. The script then logs all requests made.
+ALWAYS run this command in a tmux pane or background process — it blocks until Ctrl+C.
 
 ```bash
-uv run scripts/network.py
-uv run scripts/network.py --type fetch --show-body
-uv run scripts/network.py --filter "api\\.example\\.com" --show-headers
+./scripts/browser-tools network
+./scripts/browser-tools network --type fetch --show-body
+./scripts/browser-tools network --filter "api\.example\.com" --show-headers
 ```
 
 ## Get HTML content
 
-Outputs HTML with optional filtering and additional context.
+```bash
+./scripts/browser-tools html
+./scripts/browser-tools html --filter "<button.*submit.*>"
+./scripts/browser-tools html --filter "data-id=\"\d+\"" --lines 10
+```
+
+## Screenshots
 
 ```bash
-uv run scripts/get-html.py
-uv run scripts/get-html.py --filter "<button.*submit.*>"
-uv run scripts/get-html.py --filter "data-id=\"\d+\"" --lines 10
+./scripts/browser-tools screenshot
+./scripts/browser-tools screenshot --full-page
 ```
 
 ## Manage tabs
 
-List all open tabs, switch to a specific tab, or close a tab:
+```bash
+./scripts/browser-tools tab
+./scripts/browser-tools tab --activate 2
+./scripts/browser-tools tab --close 3
+./scripts/browser-tools tab --refresh 1
+```
+
+## Global options
+
+All commands support these flags (placed before the command):
 
 ```bash
-uv run scripts/tabs.py
-uv run scripts/tabs.py --switch 0
-uv run scripts/tabs.py --close 1
+--browser string     # chrome-stable, chrome-beta, chrome-dev, chrome-canary (default: chrome-canary)
+--port int           # remote debugging port (default: 9222)
+--timeout duration   # timeout for element-waiting commands (default: 10s)
+                     # increase for slow pages or large downloads, e.g. --timeout 60s
 ```
 
 ## More
 
 For detailed API reference, see [REFERENCE.md](REFERENCE.md).
+

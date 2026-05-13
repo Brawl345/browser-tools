@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Build binaries
+        run: |
+          GOOS=darwin  GOARCH=amd64 go build -o browser-tools-darwin-amd64 .
+          GOOS=darwin  GOARCH=arm64 go build -o browser-tools-darwin-arm64 .
+          GOOS=windows GOARCH=amd64 go build -o browser-tools-windows-x64.exe .
+          GOOS=linux   GOARCH=amd64 go build -o browser-tools-linux-x64 .
+          GOOS=linux   GOARCH=arm64 go build -o browser-tools-linux-arm64 .
+
+      - name: Package (macOS amd64)
+        run: |
+          mkdir -p pkg/scripts
+          cp browser-tools-darwin-amd64 pkg/scripts/browser-tools
+          cp SKILL.md REFERENCE.md pkg/
+          cd pkg && zip -r ../browser-tools-darwin-amd64.zip . && cd ..
+          rm -rf pkg
+
+      - name: Package (macOS arm64)
+        run: |
+          mkdir -p pkg/scripts
+          cp browser-tools-darwin-arm64 pkg/scripts/browser-tools
+          cp SKILL.md REFERENCE.md pkg/
+          cd pkg && zip -r ../browser-tools-darwin-arm64.zip . && cd ..
+          rm -rf pkg
+
+      - name: Package (Windows x64)
+        run: |
+          mkdir -p pkg/scripts
+          cp browser-tools-windows-x64.exe pkg/scripts/browser-tools.exe
+          sed 's|\./scripts/browser-tools\b|\./scripts/browser-tools.exe|g' SKILL.md     > pkg/SKILL.md
+          sed 's|\./scripts/browser-tools\b|\./scripts/browser-tools.exe|g' REFERENCE.md > pkg/REFERENCE.md
+          cd pkg && zip -r ../browser-tools-windows-x64.zip . && cd ..
+          rm -rf pkg
+
+      - name: Package (Linux x64)
+        run: |
+          mkdir -p pkg/scripts
+          cp browser-tools-linux-x64 pkg/scripts/browser-tools
+          cp SKILL.md REFERENCE.md pkg/
+          cd pkg && zip -r ../browser-tools-linux-x64.zip . && cd ..
+          rm -rf pkg
+
+      - name: Package (Linux arm64)
+        run: |
+          mkdir -p pkg/scripts
+          cp browser-tools-linux-arm64 pkg/scripts/browser-tools
+          cp SKILL.md REFERENCE.md pkg/
+          cd pkg && zip -r ../browser-tools-linux-arm64.zip . && cd ..
+          rm -rf pkg
+
+      - name: Update latest tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f latest
+          git push origin latest --force
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          tag_name: latest
+          name: Latest
+          make_latest: true
+          body: |
+            Latest build — commit ${{ github.sha }}
+          files: |
+            browser-tools-darwin-amd64.zip
+            browser-tools-darwin-arm64.zip
+            browser-tools-windows-x64.zip
+            browser-tools-linux-x64.zip
+            browser-tools-linux-arm64.zip
