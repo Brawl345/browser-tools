@@ -32,6 +32,8 @@ Build the binary:
 go build -o scripts/browser-tools .
 ```
 
+And copy the whole directory to your skills directory. Or download a prebuilt one from releases.
+
 Then mention "use the browser-tools skill" and the agent will invoke it automatically.
 
 ## Documentation
