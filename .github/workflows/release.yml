@@ -105,11 +105,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_SHA: ${{ github.sha }}
         run: |
+          gh release delete latest --yes || true
           gh release create latest \
             --title Latest \
             --notes "Latest build — commit ${GH_SHA}" \
             --latest \
-            --force \
             browser-tools-darwin-amd64.zip \
             browser-tools-darwin-arm64.zip \
             browser-tools-windows-x64.zip \
