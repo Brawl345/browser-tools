@@ -21,6 +21,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          fetch-depth: 5
 
       - name: Setup Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
@@ -39,10 +40,10 @@ jobs:
             local os="$1"
             local arch="$2"
             local output="$3"
-
-            echo "Building ${os}/${arch}..."
             GOOS="$os" GOARCH="$arch" go build -ldflags "$LDFLAGS" -o "$output" .
           }
+
+          go mod download
 
           build darwin  amd64 browser-tools-darwin-amd64 &
           build darwin  arm64 browser-tools-darwin-arm64 &
@@ -109,10 +110,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_SHA: ${{ github.sha }}
         run: |
+          notes_file="$(mktemp)"
+          {
+            echo "Latest build — commit ${GH_SHA}"
+            echo
+            echo "## Last 5 commits"
+            git log -5 --pretty='format:- %s (%h)'
+          } > "$notes_file"
+
           gh release delete latest --yes || true
           gh release create latest \
             --title Latest \
-            --notes "Latest build — commit ${GH_SHA}" \
+            --notes-file "$notes_file" \
             --latest \
             browser-tools-darwin-amd64.zip \
             browser-tools-darwin-arm64.zip \
