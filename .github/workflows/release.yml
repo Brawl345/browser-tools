@@ -17,10 +17,6 @@ jobs:
     permissions:
       contents: write  # needed for git push + release creation
     steps:
-      - uses: GitHubSecurityLab/actions-permissions/monitor@bf82d13b9b10051d224345ab9184f5ede0a94289 # v1.0.2-beta9
-        with:
-          config: ${{ vars.PERMISSIONS_CONFIG }}
-
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -37,16 +33,24 @@ jobs:
           GOFLAGS: -trimpath
           LDFLAGS: -s -w -buildid=
         run: |
-          echo "Building for macOS (amd64)"...
-          GOOS=darwin  GOARCH=amd64 go build -ldflags "$LDFLAGS" -o browser-tools-darwin-amd64 .
-          echo "Building for macOS (arm64)"...
-          GOOS=darwin  GOARCH=arm64 go build -ldflags "$LDFLAGS" -o browser-tools-darwin-arm64 .
-          echo "Building for Windows (x64)"...
-          GOOS=windows GOARCH=amd64 go build -ldflags "$LDFLAGS" -o browser-tools-windows-x64.exe .
-          echo "Building for Linux (x64)"...
-          GOOS=linux   GOARCH=amd64 go build -ldflags "$LDFLAGS" -o browser-tools-linux-x64 .
-          echo "Building for Linux (arm64)"...
-          GOOS=linux   GOARCH=arm64 go build -ldflags "$LDFLAGS" -o browser-tools-linux-arm64 .
+          set -euo pipefail
+
+          build() {
+            local os="$1"
+            local arch="$2"
+            local output="$3"
+
+            echo "Building ${os}/${arch}..."
+            GOOS="$os" GOARCH="$arch" go build -ldflags "$LDFLAGS" -o "$output" .
+          }
+
+          build darwin  amd64 browser-tools-darwin-amd64 &
+          build darwin  arm64 browser-tools-darwin-arm64 &
+          build windows amd64 browser-tools-windows-x64.exe &
+          build linux   amd64 browser-tools-linux-x64 &
+          build linux   arm64 browser-tools-linux-arm64 &
+
+          wait
 
       - name: Package (macOS amd64)
         run: |
