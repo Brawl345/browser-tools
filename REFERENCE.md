@@ -4,6 +4,12 @@ Go binary for controlling Chrome via the Chrome DevTools Protocol.
 
 ## Prerequisites
 
+**IMPORTANT:** Always prefix the binary path when running commands:
+
+```bash
+{basedir}/scripts/browser-tools <command> [options]
+```
+
 Start Chrome with remote debugging:
 
 ```bash

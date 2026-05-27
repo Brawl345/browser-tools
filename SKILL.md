@@ -11,7 +11,7 @@ This skill provides a compiled Go binary (`browser-tools`) to interact with a we
 **IMPORTANT:** Always prefix the binary path when running commands:
 
 ```bash
-./scripts/browser-tools <command> [options]
+{basedir}/scripts/browser-tools <command> [options]
 ```
 
 ## Start
