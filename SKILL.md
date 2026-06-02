@@ -32,7 +32,7 @@ Start Chrome with remote debugging (done automatically by every command, but can
 
 ## Execute JavaScript
 
-NOTE: Prefer `html` or `pick-element` whenever possible to save on token usage.
+NOTE: Prefer specialized commands like `html`, `mouse`, `network` or `pick-element` whenever possible.
 
 **IMPORTANT:** Top-level `return` statements cause a `SyntaxError`. Always wrap multi-statement scripts in an IIFE: `(function() { ...; return result; })()`
 

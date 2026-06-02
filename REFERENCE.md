@@ -50,7 +50,7 @@ Navigate to a URL in the active tab or open in a new tab:
 
 ### evaluate-js
 
-NOTE: Prefer `html` or `pick-element` whenever possible to save on token usage.
+NOTE: Prefer specialized commands like `html`, `mouse`, `network` or `pick-element` whenever possible.
 
 Execute JavaScript on the current page. Accepts inline code, a path to a `.js` file, or `-` to read from STDIN.
 
