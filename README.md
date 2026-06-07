@@ -23,6 +23,7 @@ A coding agent skill for browser automation using Go and the Chrome DevTools Pro
 - **DOM Storage**: Inspect and clear localStorage / sessionStorage
 - **Clear Browser Data**: Wipe cache, cookies, IndexedDB, service workers, and more
 - **Tab Management**: List (with active tab indicator), activate, close, and refresh tabs
+- **Self-Update**: Replace the binary and docs in place from the latest release (`update`, fork-aware)
 
 ## Quick Start
 

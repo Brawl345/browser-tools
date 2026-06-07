@@ -32,7 +32,10 @@ jobs:
       - name: Build binaries
         env:
           GOFLAGS: -trimpath
-          LDFLAGS: -s -w -buildid=
+          LDFLAGS: >-
+            -s -w -buildid=
+            -X browser-tools/cmd.Commit=${{ github.sha }}
+            -X browser-tools/cmd.Repo=${{ github.repository }}
         run: |
           set -euo pipefail
 

@@ -29,25 +29,26 @@ func usage() {
 	flag.PrintDefaults()
 	fmt.Fprintf(os.Stderr, "\nCommands:\n")
 	cmds := [][2]string{
-		{"check [--uncheck] [--force] <sel>",  "Check/uncheck a checkbox or radio button"},
-		{"clear [options]",                    "Clear browser data (cookies, cache, storage, …)"},
-		{"console [--errors-only]",            "Get console messages from the current tab"},
-		{"cookie [--all]",                     "List cookies for the current tab"},
-		{"dom-storage [--local|--session]",    "Show localStorage / sessionStorage"},
-		{"download [--output <path>] <sel>",   "Download a file by clicking an element"},
-		{"evaluate-js [JS]",                   "Evaluate JavaScript in the current tab"},
-		{"fill [--clear] <sel> <text>",        "Fill an input field"},
-		{"html [options]",                     "Get the page HTML, optionally filtered"},
-		{"key [--selector <sel>] <key>",        "Simulate a key press"},
-		{"mouse <action> [options] <sel>",     "Simulate mouse actions (click/dblclick/hover/…)"},
-		{"navigate [--new-tab] <url>",         "Open a URL in a browser tab"},
-		{"network [options]",                  "Capture network requests"},
-		{"pick-element <message>",             "Interactively pick a DOM element"},
-		{"screenshot [--full-page]",           "Take a screenshot to /tmp"},
-		{"select [options] <sel> <val>",       "Select a dropdown option"},
-		{"start",                              "Start the browser with remote debugging"},
-		{"tab [options]",                      "Manage tabs"},
-		{"upload <sel> <file> [file2 …]",      "Set files on a file input"},
+		{"check [--uncheck] [--force] <sel>", "Check/uncheck a checkbox or radio button"},
+		{"clear [options]", "Clear browser data (cookies, cache, storage, …)"},
+		{"console [--errors-only]", "Get console messages from the current tab"},
+		{"cookie [--all]", "List cookies for the current tab"},
+		{"dom-storage [--local|--session]", "Show localStorage / sessionStorage"},
+		{"download [--output <path>] <sel>", "Download a file by clicking an element"},
+		{"evaluate-js [JS]", "Evaluate JavaScript in the current tab"},
+		{"fill [--clear] <sel> <text>", "Fill an input field"},
+		{"html [options]", "Get the page HTML, optionally filtered"},
+		{"key [--selector <sel>] <key>", "Simulate a key press"},
+		{"mouse <action> [options] <sel>", "Simulate mouse actions (click/dblclick/hover/…)"},
+		{"navigate [--new-tab] <url>", "Open a URL in a browser tab"},
+		{"network [options]", "Capture network requests"},
+		{"pick-element <message>", "Interactively pick a DOM element"},
+		{"screenshot [--full-page]", "Take a screenshot to /tmp"},
+		{"select [options] <sel> <val>", "Select a dropdown option"},
+		{"start", "Start the browser with remote debugging"},
+		{"tab [options]", "Manage tabs"},
+		{"update [--check] [--force]", "Update browser-tools to the latest release"},
+		{"upload <sel> <file> [file2 …]", "Set files on a file input"},
 	}
 	for _, c := range cmds {
 		fmt.Fprintf(os.Stderr, "  %-34s %s\n", c[0], c[1])
@@ -107,6 +108,8 @@ func main() {
 		cmd.Start(*browserVariant, *port, flag.Args()[1:])
 	case "tab":
 		cmd.Tab(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
+	case "update":
+		cmd.Update(bgCtx, flag.Args()[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", flag.Arg(0))
 		usage()
