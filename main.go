@@ -45,6 +45,7 @@ func usage() {
 		{"network [options]", "Capture network requests"},
 		{"pick-element <message>", "Interactively pick a DOM element"},
 		{"screenshot [--full-page]", "Take a screenshot to /tmp"},
+		{"scroll [<sel>|--x|--y|--top|--bottom]", "Scroll to an element or X/Y position"},
 		{"select [options] <sel> <val>", "Select a dropdown option"},
 		{"start", "Start the browser with remote debugging"},
 		{"tab [options]", "Manage tabs"},
@@ -103,6 +104,8 @@ func main() {
 		cmd.PickElement(bgCtx, *browserVariant, *port, flag.Args()[1:])
 	case "screenshot":
 		cmd.Screenshot(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
+	case "scroll":
+		cmd.Scroll(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "select":
 		cmd.SelectDropdown(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "upload":

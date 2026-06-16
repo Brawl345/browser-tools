@@ -101,6 +101,28 @@ Take a screenshot saved to `/tmp/screenshot-YYYYMMDD-HHMMSS.png`. Prints the pat
 Options:
 - `--full-page`: Capture the entire page, not just the viewport
 
+### scroll
+
+Scroll the page to an element or to an absolute position. Exactly one mode may be used at a time:
+
+```bash
+# Scroll an element into view (waits for it, up to --timeout)
+./scripts/browser-tools scroll "#section"
+# Scroll to an absolute X/Y position in pixels
+./scripts/browser-tools scroll --x 0 --y 800
+# Scroll to the very top or bottom of the page
+./scripts/browser-tools scroll --top
+./scripts/browser-tools scroll --bottom
+```
+
+When only one of `--x`/`--y` is given, the other axis keeps its current scroll position.
+
+Options:
+- `--x <n>`: Absolute X position in pixels
+- `--y <n>`: Absolute Y position in pixels
+- `--top`: Scroll to the top of the page
+- `--bottom`: Scroll to the bottom of the page
+
 ### cookie
 
 List cookies for the current tab:

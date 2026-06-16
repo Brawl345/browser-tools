@@ -213,6 +213,15 @@ ALWAYS run this command in a tmux pane or background process — it blocks until
 ./scripts/browser-tools screenshot --full-page
 ```
 
+## Scroll
+
+```bash
+./scripts/browser-tools scroll "#section"      # scroll element into view
+./scripts/browser-tools scroll --x 0 --y 800   # scroll to X/Y position
+./scripts/browser-tools scroll --top
+./scripts/browser-tools scroll --bottom
+```
+
 ## Manage tabs
 
 ```bash
