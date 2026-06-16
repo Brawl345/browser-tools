@@ -32,7 +32,7 @@ Start Chrome with remote debugging (done automatically by every command, but can
 
 ## Execute JavaScript
 
-NOTE: Prefer specialized commands like `html`, `mouse`, `network` or `pick-element` whenever possible.
+NOTE: Always prefer specialized commands like `html`, `mouse`, `network` or `element`/`pick-element` whenever possible.
 
 **IMPORTANT:** Top-level `return` statements cause a `SyntaxError`. Always wrap multi-statement scripts in an IIFE: `(function() { ...; return result; })()`
 
@@ -58,7 +58,19 @@ Instruct the user to interactively pick a DOM element:
 ./scripts/browser-tools pick-element "Select all product cards"
 ```
 
-Returns tag, id, class, text content, HTML, and parent hierarchy.
+Returns a JSON array of selected elements, each with tag, id, class, text, attributes, bounding box, visibility, HTML and parent hierarchy.
+
+## Read element info
+
+Read a known CSS selector's properties as JSON — without writing JS. Returns tag, id, class, text, attributes, bounding box and visibility:
+
+```bash
+./scripts/browser-tools element "button#submit"
+# Print only one attribute's value as plain text
+./scripts/browser-tools element "a.download" --attr href
+```
+
+Always prints `{count, elements}` (same shape regardless of how many match). `count` is the total number of matches; `elements` holds a sample of the first few. On multiple matches a `note` field advises refining the selector.
 
 ## Mouse actions
 

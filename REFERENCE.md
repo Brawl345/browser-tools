@@ -50,7 +50,7 @@ Navigate to a URL in the active tab or open in a new tab:
 
 ### evaluate-js
 
-NOTE: Prefer specialized commands like `html`, `mouse`, `network` or `pick-element` whenever possible.
+NOTE: Always prefer specialized commands like `html`, `mouse`, `network` or `element`/`pick-element` whenever possible.
 
 Execute JavaScript on the current page. Accepts inline code, a path to a `.js` file, or `-` to read from STDIN.
 
@@ -166,7 +166,25 @@ Interactive element picker. Click to select, Cmd/Ctrl+Click for multi-select, En
 ./scripts/browser-tools pick-element "Select all product cards"
 ```
 
-Returns tag, id, class, text content, HTML, and parent hierarchy for each selected element.
+Returns a JSON array of the selected elements (always an array, even for a single selection), each with tag, id, class, text, attributes, bounding box, visibility, HTML, and parent hierarchy.
+
+### element
+
+Read the properties of a known CSS selector as JSON, without writing JavaScript. Useful for reading text/attributes and for getting an element's bounding box and visibility (e.g. before a `mouse` or `screenshot` action):
+
+```bash
+./scripts/browser-tools element "button#submit"
+./scripts/browser-tools element "a.download" --attr href
+```
+
+The output always has the same shape, `{count, elements}`, regardless of how many elements match. `count` is the total number of matches and `elements` is an array holding a sample of the first few (max 3). When more than one element matches, a `note` field is added advising you to refine the selector to target a single element.
+
+Each entry in `elements` has `tag`, `id`, `class`, `text` (trimmed, max 200 chars), `attributes` (all attributes as a map), `box` (`x`/`y`/`width`/`height`), `visible`, `html` (outerHTML, max 500 chars) and `parents` (ancestor hierarchy). Fields that are null/empty are omitted.
+
+Options:
+- `--attr <name>`: Print only that attribute's value as plain text (exit 1 if absent). With multiple matches it prints one value per line.
+
+The command waits for the element to appear in the DOM (up to `--timeout`) and errors if it never does.
 
 ### mouse
 

@@ -35,6 +35,7 @@ func usage() {
 		{"cookie [--all]", "List cookies for the current tab"},
 		{"dom-storage [--local|--session]", "Show localStorage / sessionStorage"},
 		{"download [--output <path>] <sel>", "Download a file by clicking an element"},
+		{"element [--attr <name>] <sel>", "Read an element's text, attributes and box as JSON"},
 		{"evaluate-js [JS]", "Evaluate JavaScript in the current tab"},
 		{"fill [--clear] <sel> <text>", "Fill an input field"},
 		{"html [options]", "Get the page HTML, optionally filtered"},
@@ -82,6 +83,8 @@ func main() {
 		cmd.DOMStorage(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "download":
 		cmd.Download(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
+	case "element":
+		cmd.Element(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "evaluate-js":
 		cmd.EvaluateJS(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "fill":

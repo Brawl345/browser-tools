@@ -8,6 +8,7 @@ A coding agent skill for browser automation using Go and the Chrome DevTools Pro
 - **Navigate**: Open URLs in the active or a new tab
 - **Execute JavaScript**: Run inline code, files, or STDIN input
 - **Element Picker**: Interactive DOM element selection
+- **Element Info**: Read a selector's text, attributes, bounding box and visibility
 - **Mouse Actions**: Click, double-click, hover, right-click, and drag
 - **Fill Text Fields**: Fill input and textarea elements
 - **Check Elements**: Check/uncheck checkboxes and select radio buttons

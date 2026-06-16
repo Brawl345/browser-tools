@@ -58,27 +58,7 @@ const pickScript = `
 					r.top + "px;left:" + r.left + "px;width:" + r.width + "px;height:" + r.height + "px";
 			};
 
-			const buildElementInfo = (el) => {
-				const parents = [];
-				let current = el.parentElement;
-				while (current && current !== document.body) {
-					const tag = current.tagName.toLowerCase();
-					const id = current.id ? "#" + current.id : "";
-					const cls = current.className
-						? "." + current.className.trim().split(/\s+/).join(".")
-						: "";
-					parents.push(tag + id + cls);
-					current = current.parentElement;
-				}
-				return {
-					tag:     el.tagName.toLowerCase(),
-					id:      el.id || null,
-					class:   el.className || null,
-					text:    (el.textContent || "").trim().slice(0, 200) || null,
-					html:    el.outerHTML.slice(0, 500),
-					parents: parents.join(" > "),
-				};
-			};
+			const buildElementInfo = __BUILD_INFO__;
 
 			const onClick = (e) => {
 				if (banner.contains(e.target)) return;
@@ -122,30 +102,6 @@ const pickScript = `
 })()
 `
 
-type elementInfo struct {
-	Tag     string  `json:"tag"`
-	ID      *string `json:"id"`
-	Class   *string `json:"class"`
-	Text    *string `json:"text"`
-	HTML    string  `json:"html"`
-	Parents string  `json:"parents"`
-}
-
-func (e elementInfo) print() {
-	fmt.Printf("tag: %s\n", e.Tag)
-	if e.ID != nil {
-		fmt.Printf("id: %s\n", *e.ID)
-	}
-	if e.Class != nil {
-		fmt.Printf("class: %s\n", *e.Class)
-	}
-	if e.Text != nil {
-		fmt.Printf("text: %s\n", *e.Text)
-	}
-	fmt.Printf("html: %s\n", e.HTML)
-	fmt.Printf("parents: %s\n", e.Parents)
-}
-
 func PickElement(ctx context.Context, variant string, port int, args []string) {
 	fs := flag.NewFlagSet("pick-element", flag.ExitOnError)
 	fs.Usage = func() {
@@ -186,6 +142,7 @@ func PickElement(ctx context.Context, variant string, port int, args []string) {
 		os.Exit(1)
 	}
 	expr := strings.Replace(pickScript, "__PICK_MESSAGE__", string(msgJSON), 1)
+	expr = strings.Replace(expr, "__BUILD_INFO__", buildElementInfoFn, 1)
 
 	var raw []byte
 	if err := chromedp.Run(tabCtx, chromedp.Evaluate(expr, &raw, func(p *chromedpruntime.EvaluateParams) *chromedpruntime.EvaluateParams {
@@ -200,17 +157,12 @@ func PickElement(ctx context.Context, variant string, port int, args []string) {
 
 	var single elementInfo
 	if err := json.Unmarshal(raw, &single); err == nil && single.Tag != "" {
-		single.print()
+		printJSON([]elementInfo{single})
 		return
 	}
 
 	var multi []elementInfo
 	if err := json.Unmarshal(raw, &multi); err == nil {
-		for i, el := range multi {
-			if i > 0 {
-				fmt.Println()
-			}
-			el.print()
-		}
+		printJSON(multi)
 	}
 }
