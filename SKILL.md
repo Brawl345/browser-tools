@@ -222,6 +222,16 @@ ALWAYS run this command in a tmux pane or background process — it blocks until
 ./scripts/browser-tools scroll --bottom
 ```
 
+## Resize viewport
+
+Set the viewport size:
+
+```bash
+./scripts/browser-tools resize 1280 720
+./scripts/browser-tools resize 375 812
+./scripts/browser-tools resize --reset   # restore the default size
+```
+
 ## Manage tabs
 
 ```bash

@@ -21,6 +21,7 @@ A coding agent skill for browser automation using Go and the Chrome DevTools Pro
 - **HTML Extraction**: Get page HTML with optional regex filtering
 - **Screenshots**: Viewport or full-page screenshots saved to `/tmp`
 - **Scroll**: Scroll to an element, an X/Y position, or the top/bottom of the page
+- **Resize**: Set the viewport size
 - **Cookie Management**: List and clear cookies per tab or all origins
 - **DOM Storage**: Inspect and clear localStorage / sessionStorage
 - **Clear Browser Data**: Wipe cache, cookies, IndexedDB, service workers, and more

@@ -123,6 +123,22 @@ Options:
 - `--top`: Scroll to the top of the page
 - `--bottom`: Scroll to the bottom of the page
 
+### resize
+
+Set the viewport size via `Emulation.setDeviceMetricsOverride`:
+
+```bash
+./scripts/browser-tools resize 1280 720
+./scripts/browser-tools resize 375 812
+# Clear the override and restore the default size
+./scripts/browser-tools resize --reset
+```
+
+Width and height are in CSS pixels and must be positive integers.
+
+Options:
+- `--reset`: Clear the viewport override and restore the default size
+
 ### cookie
 
 List cookies for the current tab:

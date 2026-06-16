@@ -44,6 +44,7 @@ func usage() {
 		{"navigate [--new-tab] <url>", "Open a URL in a browser tab"},
 		{"network [options]", "Capture network requests"},
 		{"pick-element <message>", "Interactively pick a DOM element"},
+		{"resize [--reset] <w> <h>", "Set the viewport size"},
 		{"screenshot [--full-page]", "Take a screenshot to /tmp"},
 		{"scroll [<sel>|--x|--y|--top|--bottom]", "Scroll to an element or X/Y position"},
 		{"select [options] <sel> <val>", "Select a dropdown option"},
@@ -102,6 +103,8 @@ func main() {
 		cmd.Network(bgCtx, *browserVariant, *port, flag.Args()[1:])
 	case "pick-element":
 		cmd.PickElement(bgCtx, *browserVariant, *port, flag.Args()[1:])
+	case "resize":
+		cmd.Resize(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "screenshot":
 		cmd.Screenshot(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "scroll":
