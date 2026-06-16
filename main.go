@@ -39,6 +39,7 @@ func usage() {
 		{"evaluate-js [JS]", "Evaluate JavaScript in the current tab"},
 		{"fill [--clear] <sel> <text>", "Fill an input field"},
 		{"html [options]", "Get the page HTML, optionally filtered"},
+		{"intercept <action> [options]", "Block/redirect/modify/mock network requests"},
 		{"key [--selector <sel>] <key>", "Simulate a key press"},
 		{"mouse <action> [options] <sel>", "Simulate mouse actions (click/dblclick/hover/…)"},
 		{"navigate [--new-tab] <url>", "Open a URL in a browser tab"},
@@ -94,6 +95,8 @@ func main() {
 		cmd.Fill(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "html":
 		cmd.HTML(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
+	case "intercept":
+		cmd.Intercept(bgCtx, *browserVariant, *port, flag.Args()[1:])
 	case "key":
 		cmd.Key(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "mouse":

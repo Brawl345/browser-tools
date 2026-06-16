@@ -117,8 +117,8 @@ jobs:
           {
             echo "Latest build — commit ${GH_SHA}"
             echo
-            echo "## Last 5 commits"
-            git log -5 --pretty='format:- %s (%h)'
+            echo "## Last 7 commits"
+            git log -7 --pretty='format:- %s (%h)'
           } > "$notes_file"
 
           gh release delete latest --yes || true

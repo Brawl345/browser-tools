@@ -19,6 +19,7 @@ A coding agent skill for browser automation using Go and the Chrome DevTools Pro
 - **Select Dropdown**: Choose options by value, label, or index
 - **Console Logs**: Capture browser console messages and errors
 - **Network Monitor**: Track HTTP requests with filtering and body inspection
+- **Request Interception**: Block, redirect, and modify in-flight requests, or mock responses
 - **HTML Extraction**: Get page HTML with optional regex filtering
 - **Screenshots**: Viewport or full-page screenshots saved to `/tmp`
 - **Scroll**: Scroll to an element, an X/Y position, or the top/bottom of the page

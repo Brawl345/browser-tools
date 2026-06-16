@@ -201,12 +201,27 @@ Common keys: `Enter`, `Escape`, `Tab`, `Backspace`, `Delete`, `ArrowLeft`, `Arro
 
 ## Capture network requests
 
-ALWAYS run this command in a tmux pane or background process — it blocks until Ctrl+C.
+ALWAYS run this command in a tmux pane or background agent/process — it blocks until Ctrl+C.
 
 ```bash
 ./scripts/browser-tools network
 ./scripts/browser-tools network --type fetch --show-body
 ./scripts/browser-tools network --filter "api\.example\.com" --show-headers
+```
+
+## Intercept network requests
+
+Block, redirect, or modify in-flight requests. One action per run, chosen by subcommand: `block`, `redirect`, `modify`, `mock`. ALWAYS run this command in a tmux pane or background agent/process — it blocks until Ctrl+C. Every action takes `--url` (wildcards `*`/`?`) and `--type` to select which requests are intercepted; every other request passes through untouched.
+
+```bash
+# Block matching requests
+./scripts/browser-tools intercept block --url "*doubleclick*"
+# Redirect to another URL (transparent to the page)
+./scripts/browser-tools intercept redirect https://example.com/mock --url "*/api/*"
+# Add/override or remove request headers
+./scripts/browser-tools intercept modify --set-header "Authorization: Bearer x" --remove-header "Cookie"
+# Mock a response without hitting the server
+./scripts/browser-tools intercept mock --url "*/api/data" --status 200 --body '{"ok":true}' --content-type application/json
 ```
 
 ## Get HTML content

@@ -369,7 +369,7 @@ Options:
 
 ### network
 
-Capture network requests. **Blocking** — runs until Ctrl+C. Always run in a tmux pane.
+Capture network requests. **Blocking** — runs until Ctrl+C. Always run in a tmux pane or background agent/process - it blocks until CTRL+C.
 
 ```bash
 ./scripts/browser-tools network
@@ -383,6 +383,37 @@ Options:
 - `--filter <regex>`: Filter URLs by regex pattern
 - `--show-headers`: Show request and response headers
 - `--show-body`: Show response body (xhr/fetch only)
+
+### intercept
+
+Block, redirect, or modify in-flight network requests. **Blocking** — runs until Ctrl+C. Always run in a tmux pane or background agent/process.
+
+The action is chosen by subcommand — `block`, `redirect`, `modify`, or `mock` — so only the relevant options apply per run. Every action selects which requests to intercept with `--url` (wildcards `*` and `?`, default `*`) and optionally `--type`; matching requests are paused and the action is applied, while all other traffic passes through.
+
+```bash
+./scripts/browser-tools intercept block --url "*doubleclick*"
+./scripts/browser-tools intercept redirect https://example.com/mock --url "*/api/*"
+./scripts/browser-tools intercept modify --set-header "X-Test: 1" --remove-header "Cookie"
+./scripts/browser-tools intercept mock --url "*/api/data" --status 200 --body '{"ok":true}' --content-type application/json
+```
+
+Shared selection options (all actions):
+- `--url <pattern>`: Wildcard URL pattern to intercept (`*` = zero or more, `?` = exactly one; default `*`)
+- `--type <t>`: Filter by resource type: `all`, `xhr`, `fetch`, `document`, `script`, `stylesheet`, `image`, `font`, `media`, `websocket`, `other` (default `all`)
+
+`intercept block` — fail matching requests (`ERR_BLOCKED_BY_CLIENT`). No extra options.
+
+`intercept redirect <url>` — reroute matching requests to `<url>` (transparent to the page; the address bar is unchanged).
+
+`intercept modify` — add/override or remove request headers, then continue:
+- `--set-header "Name: Value"`: Add/override a request header (repeatable)
+- `--remove-header <name>`: Remove a request header by name (repeatable)
+
+`intercept mock` — answer matching requests with a custom response without hitting the server:
+- `--status <code>`: Response status code (default `200`)
+- `--body <string>`: Response body
+- `--file <path>`: Response body read from a file
+- `--content-type <mime>`: Content-type response header
 
 ### tab
 
