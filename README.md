@@ -50,7 +50,7 @@ Then mention "use the browser-tools skill" and the agent will invoke it automati
 
 ## Requirements
 
-- Go 1.21+
+- Go 1.26+
 - Chrome/Chromium browser
 
 ## User Profile
