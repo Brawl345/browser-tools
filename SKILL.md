@@ -211,6 +211,7 @@ ALWAYS run this command in a tmux pane or background process — it blocks until
 ```bash
 ./scripts/browser-tools screenshot
 ./scripts/browser-tools screenshot --full-page
+./scripts/browser-tools screenshot --selector "#main"
 ```
 
 ## Scroll

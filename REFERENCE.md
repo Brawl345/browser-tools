@@ -96,10 +96,12 @@ Take a screenshot saved to `/tmp/screenshot-YYYYMMDD-HHMMSS.png`. Prints the pat
 ```bash
 ./scripts/browser-tools screenshot
 ./scripts/browser-tools screenshot --full-page
+./scripts/browser-tools screenshot --selector ".chart"
 ```
 
 Options:
 - `--full-page`: Capture the entire page, not just the viewport
+- `--selector <css>`: Capture only the element matching the CSS selector (mutually exclusive with `--full-page`)
 
 ### scroll
 

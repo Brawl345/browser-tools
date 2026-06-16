@@ -14,12 +14,17 @@ import (
 func Screenshot(ctx context.Context, variant string, port int, args []string) {
 	fs := flag.NewFlagSet("screenshot", flag.ExitOnError)
 	fullPage := fs.Bool("full-page", false, "capture the entire page, not just the viewport")
+	selector := fs.String("selector", "", "capture only the element matching this CSS selector")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: browser-tools screenshot [--full-page]")
+		fmt.Fprintln(os.Stderr, "Usage: browser-tools screenshot [--full-page] [--selector <css>]")
 		fmt.Fprintln(os.Stderr)
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
+		os.Exit(1)
+	}
+	if *fullPage && *selector != "" {
+		fmt.Fprintln(os.Stderr, "error: --full-page and --selector are mutually exclusive")
 		os.Exit(1)
 	}
 
@@ -33,9 +38,24 @@ func Screenshot(ctx context.Context, variant string, port int, args []string) {
 
 	var buf []byte
 	var action chromedp.Action
-	if *fullPage {
+	switch {
+	case *selector != "":
+		var count int
+		countScript := fmt.Sprintf(`document.querySelectorAll(%s).length`, jsonStr(*selector))
+		action = chromedp.Tasks{
+			chromedp.WaitVisible(*selector, chromedp.ByQuery),
+			chromedp.Evaluate(countScript, &count),
+			chromedp.ActionFunc(func(context.Context) error {
+				if count > 1 {
+					fmt.Fprintf(os.Stderr, "note: %d elements match %q; capturing the first. Refine the selector to target a single element.\n", count, *selector)
+				}
+				return nil
+			}),
+			chromedp.Screenshot(*selector, &buf, chromedp.NodeVisible, chromedp.ByQuery),
+		}
+	case *fullPage:
 		action = chromedp.FullScreenshot(&buf, 100)
-	} else {
+	default:
 		action = chromedp.CaptureScreenshot(&buf)
 	}
 
