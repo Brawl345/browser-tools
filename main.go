@@ -52,6 +52,7 @@ func usage() {
 		{"tab [options]", "Manage tabs"},
 		{"update [--check] [--force]", "Update browser-tools to the latest release"},
 		{"upload <sel> <file> [file2 …]", "Set files on a file input"},
+		{"wait [--hidden|--present|--absent] <sel>", "Wait for an element to reach a state"},
 	}
 	for _, c := range cmds {
 		fmt.Fprintf(os.Stderr, "  %-34s %s\n", c[0], c[1])
@@ -113,6 +114,8 @@ func main() {
 		cmd.SelectDropdown(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "upload":
 		cmd.Upload(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
+	case "wait":
+		cmd.Wait(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "start":
 		cmd.Start(*browserVariant, *port, flag.Args()[1:])
 	case "tab":

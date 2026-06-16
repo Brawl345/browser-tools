@@ -226,6 +226,23 @@ Options:
 
 The command waits for the element to appear in the DOM (up to `--timeout`) and errors if it never does.
 
+### wait
+
+Block until an element matching a CSS selector reaches a state, then exit. Useful for synchronising on dynamic content before another action. The command waits up to `--timeout` and exits 1 if the state is never reached:
+
+```bash
+./scripts/browser-tools wait "#results"
+./scripts/browser-tools wait "#spinner" --hidden
+./scripts/browser-tools --timeout 30s wait "#late-content" --present
+./scripts/browser-tools wait "#spinner" --absent
+```
+
+States (mutually exclusive):
+- `--visible` (default): element exists and is visible
+- `--hidden`: element exists in the DOM but is not visible
+- `--present`: element exists in the DOM (visible or not)
+- `--absent`: element does not exist in the DOM
+
 ### mouse
 
 Simulate mouse actions on elements using CSS selectors:

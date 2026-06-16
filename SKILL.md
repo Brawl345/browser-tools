@@ -72,6 +72,17 @@ Read a known CSS selector's properties as JSON — without writing JS. Returns t
 
 Always prints `{count, elements}` (same shape regardless of how many match). `count` is the total number of matches; `elements` holds a sample of the first few. On multiple matches a `note` field advises refining the selector.
 
+## Wait for an element
+
+Block until an element reaches a state, then exit (times out after `--timeout`):
+
+```bash
+./scripts/browser-tools wait "#results"            # wait until visible (default)
+./scripts/browser-tools wait "#spinner" --hidden   # present but not visible
+./scripts/browser-tools wait "#lazy" --present     # exists in the DOM
+./scripts/browser-tools wait "#spinner" --absent   # gone from the DOM
+```
+
 ## Mouse actions
 
 ```bash
