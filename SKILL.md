@@ -240,6 +240,14 @@ Block, redirect, or modify in-flight requests. One action per run, chosen by sub
 ./scripts/browser-tools screenshot --selector "#main"
 ```
 
+## Save page as PDF
+
+```bash
+./scripts/browser-tools pdf
+./scripts/browser-tools pdf --format letter --landscape --output ~/Documents/page.pdf
+./scripts/browser-tools pdf --margin 0.2 --header-footer
+```
+
 ## Scroll
 
 ```bash

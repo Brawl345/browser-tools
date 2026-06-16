@@ -22,6 +22,7 @@ A coding agent skill for browser automation using Go and the Chrome DevTools Pro
 - **Request Interception**: Block, redirect, and modify in-flight requests, or mock responses
 - **HTML Extraction**: Get page HTML with optional regex filtering
 - **Screenshots**: Viewport or full-page screenshots saved to `/tmp`
+- **PDF Export**: Save the current page as a PDF with format, margin, and header/footer options
 - **Scroll**: Scroll to an element, an X/Y position, or the top/bottom of the page
 - **Resize**: Set the viewport size
 - **Cookie Management**: List and clear cookies per tab or all origins

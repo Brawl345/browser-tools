@@ -44,6 +44,7 @@ func usage() {
 		{"mouse <action> [options] <sel>", "Simulate mouse actions (click/dblclick/hover/…)"},
 		{"navigate [--new-tab] <url>", "Open a URL in a browser tab"},
 		{"network [options]", "Capture network requests"},
+		{"pdf [options]", "Save the current page as a PDF"},
 		{"pick-element <message>", "Interactively pick a DOM element"},
 		{"resize [--reset] <w> <h>", "Set the viewport size"},
 		{"screenshot [--full-page]", "Take a screenshot to /tmp"},
@@ -105,6 +106,8 @@ func main() {
 		cmd.Navigate(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "network":
 		cmd.Network(bgCtx, *browserVariant, *port, flag.Args()[1:])
+	case "pdf":
+		cmd.PDF(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "pick-element":
 		cmd.PickElement(bgCtx, *browserVariant, *port, flag.Args()[1:])
 	case "resize":

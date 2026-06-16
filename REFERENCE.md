@@ -103,6 +103,32 @@ Options:
 - `--full-page`: Capture the entire page, not just the viewport
 - `--selector <css>`: Capture only the element matching the CSS selector (mutually exclusive with `--full-page`)
 
+### pdf
+
+Save the current page as a PDF via `Page.printToPDF`, written to `/tmp/page-YYYYMMDD-HHMMSS.pdf` by default. Prints the path to stdout.
+
+```bash
+./scripts/browser-tools pdf
+./scripts/browser-tools pdf --format letter --landscape
+./scripts/browser-tools pdf --output ~/Documents/report.pdf
+./scripts/browser-tools pdf --margin 0.2 --header-footer
+./scripts/browser-tools pdf --page-ranges "1-3, 5"
+```
+
+Options:
+- `--output <path>`: Custom output path (parent directories are created if needed)
+- `--format <name>`: Paper format: `a3`, `a4` (default), `a5`, `letter`, `legal`, `tabloid`
+- `--landscape`: Use landscape orientation
+- `--margin <inches>`: Page margin applied to all sides (default `0.4`)
+- `--scale <float>`: Scale of the page rendering (default `1.0`)
+- `--no-background`: Do not print background graphics (printed by default)
+- `--header-footer`: Show a header (page title) and footer (page number) on each page
+- `--header-template <html>`: Custom HTML header template (implies `--header-footer`)
+- `--footer-template <html>`: Custom HTML footer template (implies `--header-footer`)
+- `--page-ranges <ranges>`: Pages to print, one-based, e.g. `"1-5, 8, 11-13"`
+
+Header and footer templates may use `<span>` elements with the classes `date`, `title`, `url`, `pageNumber` and `totalPages` to inject printing values. Headers and footers are only visible when the corresponding margin leaves room for them.
+
 ### scroll
 
 Scroll the page to an element or to an absolute position. Exactly one mode may be used at a time:
