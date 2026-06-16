@@ -8,6 +8,7 @@ import (
 
 	"browser-tools/browser"
 	flag "github.com/spf13/pflag"
+	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 )
 
@@ -38,7 +39,10 @@ func EvaluateJS(ctx context.Context, variant string, port int, args []string) {
 	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
 
 	var result []byte
-	if err := chromedp.Run(tabCtx, chromedp.Evaluate(jsCode, &result)); err != nil {
+	awaitPromise := func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
+		return p.WithAwaitPromise(true)
+	}
+	if err := chromedp.Run(tabCtx, chromedp.Evaluate(jsCode, &result, awaitPromise)); err != nil {
 		switch err {
 		case chromedp.ErrJSUndefined, chromedp.ErrJSNull:
 		default:
