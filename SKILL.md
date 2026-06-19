@@ -276,12 +276,25 @@ Set the viewport size:
 ./scripts/browser-tools tab --refresh 1
 ```
 
+## Extensions
+
+```bash
+./scripts/browser-tools extension load ./my-extension   # prints the extension ID
+./scripts/browser-tools extension list
+./scripts/browser-tools extension reload <id>           # pick up code changes
+./scripts/browser-tools extension action <id>           # click the toolbar action
+./scripts/browser-tools extension uninstall <id>
+```
+
+After `action`, the popup becomes the active tab — interact with it using the regular commands (`mouse`, `fill`, `element`, `evaluate-js`, `screenshot`, …).
+
 ## Global options
 
 All commands support these flags (placed before the command):
 
 ```bash
---browser string     # chrome-stable, chrome-beta, chrome-dev, chrome-canary (default: chrome-canary)
+--browser string     # chrome-stable, chrome-beta, chrome-dev, chrome-canary,
+                     # cft-stable, cft-beta, cft-dev, cft-canary (default: chrome-canary)
 --port int           # remote debugging port (default: 9222)
 --timeout duration   # timeout for element-waiting commands (default: 10s)
                      # increase for slow pages or large downloads, e.g. --timeout 60s

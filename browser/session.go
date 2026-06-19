@@ -42,13 +42,17 @@ func Launch(variant string, port int) error {
 		return fmt.Errorf("failed to create user data dir: %w", err)
 	}
 
-	c := exec.Command(
-		cfg.Executable,
+	args := []string{
 		fmt.Sprintf("--remote-debugging-port=%d", port),
 		fmt.Sprintf("--user-data-dir=%s", udd),
 		"--no-first-run",
 		"--no-default-browser-check",
-	)
+	}
+	if IsChromeForTesting(variant) {
+		args = append(args, "--enable-unsafe-extension-debugging")
+	}
+
+	c := exec.Command(cfg.Executable, args...)
 	c.Stdout = nil
 	c.Stderr = nil
 	detachProcess(c)

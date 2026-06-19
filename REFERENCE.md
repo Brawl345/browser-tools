@@ -31,7 +31,7 @@ All commands accept these flags **before** the command name:
 
 | Flag | Default | Description |
 |---|---|---|
-| `--browser` | `chrome-canary` | Browser variant: `chrome-stable`, `chrome-beta`, `chrome-dev`, `chrome-canary` |
+| `--browser` | `chrome-canary` | Browser variant: `chrome-stable`, `chrome-beta`, `chrome-dev`, `chrome-canary`, `cft-stable`, `cft-beta`, `cft-dev`, `cft-canary` |
 | `--port` | `9222` | Remote debugging port |
 | `--timeout` | `10s` | Timeout for commands that wait on elements (e.g. `30s`, `500ms`, `2m`) |
 
@@ -456,3 +456,51 @@ Options:
 - `--activate <n>`: Activate tab by 1-based index
 - `--close <n>`: Close tab by 1-based index
 - `--refresh <n>`: Refresh tab by 1-based index
+
+---
+
+### update-cft
+
+Download or update a Chrome for Testing build into the local cache. Builds are
+stored at `~/.cache/claude-browser-tools/chrome-for-testing-binaries/<channel>/`
+and an update replaces the existing build.
+
+```bash
+./scripts/browser-tools update-cft                    # stable
+./scripts/browser-tools update-cft --channel beta
+./scripts/browser-tools update-cft --channel stable --check
+```
+
+Options:
+- `--channel <c>`: `stable` (default), `beta`, `dev`, or `canary`
+- `--check`: Only report whether an update is available
+- `--force`: Reinstall even if already up to date
+
+---
+
+### extension
+
+Manage unpacked extensions. Requires a Chrome for Testing variant; other variants report an error.
+
+```bash
+./scripts/browser-tools extension load ./my-extension
+./scripts/browser-tools extension list
+./scripts/browser-tools extension reload <id>
+./scripts/browser-tools extension action <id>
+./scripts/browser-tools extension uninstall <id>
+```
+
+Commands:
+- `load <dir>`: Load an unpacked extension from a directory, printing its ID
+- `list`: List loaded unpacked extensions with ID, name, version, and status
+- `reload <id>`: Reload an extension from its source directory, picking up code changes
+- `action <id>`: Trigger the extension's toolbar action on the active tab
+- `uninstall <id>`: Remove a loaded extension
+
+After `action`, the popup opens as the active tab, so the regular commands
+(`element`, `mouse`, `fill`, `evaluate-js`, `screenshot`, …) operate on it:
+
+```bash
+./scripts/browser-tools extension action <id>
+./scripts/browser-tools mouse click "#my-button"
+```

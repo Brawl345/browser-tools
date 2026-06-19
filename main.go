@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	browserVariant = flag.String("browser", browserDefault(), "browser variant: chrome-stable, chrome-beta, chrome-dev, chrome-canary")
+	browserVariant = flag.String("browser", browserDefault(), "browser variant: chrome-stable, chrome-beta, chrome-dev, chrome-canary, cft-stable, cft-beta, cft-dev, cft-canary")
 	port           = flag.Int("port", 9222, "remote debugging port")
 	timeout        = flag.Duration("timeout", 10*time.Second, "timeout for commands that wait on elements")
 )
@@ -37,6 +37,7 @@ func usage() {
 		{"download [--output <path>] <sel>", "Download a file by clicking an element"},
 		{"element [--attr <name>] <sel>", "Read an element's text, attributes and box as JSON"},
 		{"evaluate-js [JS]", "Evaluate JavaScript in the current tab"},
+		{"extension <command> [args]", "Load/list/uninstall/trigger extensions (Chrome for Testing)"},
 		{"fill [--clear] <sel> <text>", "Fill an input field"},
 		{"html [options]", "Get the page HTML, optionally filtered"},
 		{"intercept <action> [options]", "Block/redirect/modify/mock network requests"},
@@ -53,6 +54,7 @@ func usage() {
 		{"start", "Start the browser with remote debugging"},
 		{"tab [options]", "Manage tabs"},
 		{"update [--check] [--force]", "Update browser-tools to the latest release"},
+		{"update-cft [--channel <c>]", "Download or update a Chrome for Testing build"},
 		{"upload <sel> <file> [file2 …]", "Set files on a file input"},
 		{"wait [--hidden|--present|--absent] <sel>", "Wait for an element to reach a state"},
 	}
@@ -92,6 +94,8 @@ func main() {
 		cmd.Element(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "evaluate-js":
 		cmd.EvaluateJS(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
+	case "extension", "extensions":
+		cmd.Extension(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "fill":
 		cmd.Fill(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "html":
@@ -128,6 +132,8 @@ func main() {
 		cmd.Tab(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "update":
 		cmd.Update(bgCtx, flag.Args()[1:])
+	case "update-cft":
+		cmd.CfT(bgCtx, flag.Args()[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", flag.Arg(0))
 		usage()

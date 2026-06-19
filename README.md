@@ -4,7 +4,9 @@ A coding agent skill for browser automation using Go and the Chrome DevTools Pro
 
 ## Features
 
-- **Start Browser**: Launch Chrome with remote debugging, selectable via `--browser` or `BROWSER_TOOLS_BROWSER` (`chrome-stable`, `chrome-beta`, `chrome-dev`, `chrome-canary`)
+- **Start Browser**: Launch Chrome with remote debugging, selectable via `--browser` or `BROWSER_TOOLS_BROWSER` (`chrome-stable`, `chrome-beta`, `chrome-dev`, `chrome-canary`, `cft-stable`, `cft-beta`, `cft-dev`, `cft-canary`)
+- **Chrome for Testing**: Download and update Chrome for Testing builds per channel (`update-cft`)
+- **Extensions**: Load, list, uninstall, and trigger the toolbar action of unpacked extensions on Chrome for Testing
 - **Navigate**: Open URLs in the active or a new tab
 - **Execute JavaScript**: Run inline code, files, or STDIN input
 - **Element Picker**: Interactive DOM element selection
@@ -58,3 +60,7 @@ Then mention "use the browser-tools skill" and the agent will invoke it automati
 Remote debugging is not allowed in the main Chrome profile, so a separate one is created and reused per variant:
 
 - `~/.cache/claude-browser-tools/<variant>/`
+
+Chrome for Testing builds are downloaded to:
+
+- `~/.cache/claude-browser-tools/chrome-for-testing-binaries/<channel>/`
