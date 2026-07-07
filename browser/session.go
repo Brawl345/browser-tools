@@ -2,6 +2,7 @@ package browser
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,6 +12,7 @@ import (
 
 	cdp "github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 )
@@ -224,6 +226,35 @@ func ExistingOrNewTab(allocCtx context.Context) (context.Context, context.Cancel
 
 	// Fallback: first page tab.
 	return newTabCtx(pageTabs[0].TargetID)
+}
+
+// OpenTabInForeground opens the URL as the selected tab of the current window
+// by calling window.open from the visible tab, keeping OS focus on whatever
+// application is frontmost. Returns false when no visible tab exists or the
+// popup was blocked.
+func OpenTabInForeground(allocCtx context.Context, url string) bool {
+	id := ActiveTabID(allocCtx, "")
+	if id == "" {
+		return false
+	}
+	tabCtx, _ := chromedp.NewContext(
+		allocCtx,
+		chromedp.WithTargetID(target.ID(id)),
+		chromedp.WithLogf(func(string, ...any) {}),
+		chromedp.WithErrorf(func(string, ...any) {}),
+	)
+	urlJSON, err := json.Marshal(url)
+	if err != nil {
+		return false
+	}
+	var opened bool
+	err = chromedp.Run(tabCtx, chromedp.Evaluate(
+		fmt.Sprintf("!!window.open(%s)", urlJSON), &opened,
+		func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
+			return p.WithUserGesture(true)
+		},
+	))
+	return err == nil && opened
 }
 
 // StartNavigate fires a navigation without waiting for the page to fully load.

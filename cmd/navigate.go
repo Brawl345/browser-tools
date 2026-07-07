@@ -42,15 +42,19 @@ func Navigate(ctx context.Context, variant string, port int, args []string) {
 
 	var tabCtx context.Context
 	if *newTab {
+		if browser.OpenTabInForeground(allocCtx, rawURL) {
+			fmt.Printf("Navigated to %s\n", rawURL)
+			return
+		}
 		tabCtx, _ = browser.NewTab(allocCtx)
+		if err := chromedp.Run(tabCtx, browser.ActivateCurrentTab()); err != nil {
+			fmt.Fprintf(os.Stderr, "navigate error: %v\n", err)
+			os.Exit(1)
+		}
 	} else {
 		tabCtx, _ = browser.ExistingOrNewTab(allocCtx)
 	}
 
-	if err := chromedp.Run(tabCtx, browser.ActivateCurrentTab()); err != nil {
-		fmt.Fprintf(os.Stderr, "navigate error: %v\n", err)
-		os.Exit(1)
-	}
 	if err := chromedp.Run(tabCtx, browser.StartNavigate(rawURL)); err != nil {
 		fmt.Fprintf(os.Stderr, "navigate error: %v\n", err)
 		os.Exit(1)
