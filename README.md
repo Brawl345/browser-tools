@@ -45,6 +45,28 @@ And copy the whole directory to your skills directory. Or download a prebuilt on
 
 Then mention "use the browser-tools skill" and the agent will invoke it automatically.
 
+### Nix
+
+Build the binary with the flake:
+
+```bash
+nix build github:Brawl345/browser-tools
+```
+
+The `browser-tools-skill` package bundles `SKILL.md`, `REFERENCE.md`, and the binary under `scripts/` into a ready-to-use skill directory. Install it declaratively with [home-manager](https://nix-community.github.io/home-manager/options/home-manager/programs/claude-code.html#opt-programs.claude-code.skills):
+
+```nix
+{
+  inputs.browser-tools.url = "github:Brawl345/browser-tools";
+
+  # in your home-manager config:
+  programs.claude-code.skills.browser-tools =
+    "${inputs.browser-tools.packages.${pkgs.system}.browser-tools-skill}";
+}
+```
+
+This symlinks the skill into `~/.claude/skills/browser-tools/`.
+
 ## Documentation
 
 - **[SKILL.md](SKILL.md)** — Quick reference for agents
