@@ -9,6 +9,8 @@ import (
 	"browser-tools/browser"
 	"github.com/chromedp/cdproto/domstorage"
 	"github.com/chromedp/cdproto/network"
+	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/cdproto/storage"
 	"github.com/chromedp/chromedp"
 	flag "github.com/spf13/pflag"
@@ -16,15 +18,15 @@ import (
 
 func Clear(ctx context.Context, variant string, port int, args []string) {
 	fs := flag.NewFlagSet("clear", flag.ExitOnError)
-	doCookies      := fs.Bool("cookies",        false, "clear cookies")
-	doCache        := fs.Bool("cache",          false, "clear HTTP cache (always browser-wide)")
-	doLocalStorage := fs.Bool("local-storage",  false, "clear localStorage for the current origin")
-	doSession      := fs.Bool("session-storage",false, "clear sessionStorage for the current origin")
-	doIndexedDB    := fs.Bool("indexeddb",       false, "clear IndexedDB for the current origin")
-	doCacheStorage := fs.Bool("cache-storage",  false, "clear Cache API / service worker caches for the current origin")
+	doCookies := fs.Bool("cookies", false, "clear cookies")
+	doCache := fs.Bool("cache", false, "clear HTTP cache (always browser-wide)")
+	doLocalStorage := fs.Bool("local-storage", false, "clear localStorage for the current origin")
+	doSession := fs.Bool("session-storage", false, "clear sessionStorage for the current origin")
+	doIndexedDB := fs.Bool("indexeddb", false, "clear IndexedDB for the current origin")
+	doCacheStorage := fs.Bool("cache-storage", false, "clear Cache API / service worker caches for the current origin")
 	doServiceWorkers := fs.Bool("service-workers", false, "unregister service workers for the current origin")
-	doAll          := fs.Bool("all",             false, "clear everything (shorthand for all flags above)")
-	allOrigins     := fs.Bool("all-origins",    false, "for cookies: clear from all origins; for cache: already global; storage is always per-origin")
+	doAll := fs.Bool("all", false, "clear everything (shorthand for all flags above)")
+	allOrigins := fs.Bool("all-origins", false, "for cookies: clear from all origins; for cache: already global; storage is always per-origin")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: browser-tools clear [--cookies] [--cache] [--local-storage] [--session-storage] [--indexeddb] [--all] [--all-origins]")
 		fmt.Fprintln(os.Stderr)
@@ -65,6 +67,18 @@ func Clear(ctx context.Context, variant string, port int, args []string) {
 		}
 		if u, err := url.Parse(currentURL); err == nil && u.Host != "" {
 			origin = u.Scheme + "://" + u.Host
+		}
+	}
+
+	if *doCache && !*doServiceWorkers {
+		var swCount int
+		_ = chromedp.Run(tabCtx, chromedp.Evaluate(
+			`navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(r => r.length) : 0`,
+			&swCount,
+			func(p *runtime.EvaluateParams) *runtime.EvaluateParams { return p.WithAwaitPromise(true) },
+		))
+		if swCount > 0 {
+			fmt.Fprintf(os.Stderr, "  %s⚠ %d service worker(s) active — HTTP cache clear is likely ineffective; add --service-workers%s\n", ansiYellow, swCount, ansiReset)
 		}
 	}
 
@@ -164,6 +178,18 @@ func Clear(ctx context.Context, variant string, port int, args []string) {
 	}
 	if *doServiceWorkers {
 		clearStorage("service workers", "service_workers")
+	}
+
+	if *doCache {
+		err := chromedp.Run(tabCtx, chromedp.ActionFunc(func(ctx context.Context) error {
+			return page.Reload().WithIgnoreCache(true).Do(ctx)
+		}))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  error hard-reloading: %v\n", err)
+			ok = false
+		} else {
+			fmt.Printf("  %s✓%s hard reload  %s(ignore cache)%s\n", ansiGreen, ansiReset, ansiDim, ansiReset)
+		}
 	}
 
 	if !ok {
