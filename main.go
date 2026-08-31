@@ -16,6 +16,28 @@ var (
 	timeout        = flag.Duration("timeout", 10*time.Second, "timeout for commands that wait on elements")
 )
 
+// longRunning lists the commands that stream until the user stops them, so the
+// watchdog stays disarmed for them.
+var longRunning = map[string]bool{
+	"network":      true,
+	"intercept":    true,
+	"pick-element": true,
+	"start":        true,
+	"update":       true,
+	"update-cft":   true,
+}
+
+// armWatchdog ends the process once the command budget is spent. The timeout is
+// enforced here instead of through a context deadline: chromedp closes the tab a
+// cancelled context is attached to, which would take the user's tab with it. The
+// grace period lets a command report its own, more precise error first.
+func armWatchdog(d time.Duration) {
+	time.AfterFunc(d+500*time.Millisecond, func() {
+		fmt.Fprintf(os.Stderr, "error: timed out after %s\n", d)
+		os.Exit(1)
+	})
+}
+
 func browserDefault() string {
 	if v := os.Getenv("BROWSER_TOOLS_BROWSER"); v != "" {
 		return v
@@ -76,6 +98,10 @@ func main() {
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 	bgCtx := context.Background()
+
+	if !longRunning[flag.Arg(0)] {
+		armWatchdog(*timeout)
+	}
 
 	switch flag.Arg(0) {
 	case "check":

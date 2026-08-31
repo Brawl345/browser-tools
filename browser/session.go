@@ -81,9 +81,16 @@ func EnsureRunning(variant string, port int) error {
 	return Launch(variant, port)
 }
 
+// probeTimeout caps a single visibilityState check so one busy tab cannot stall
+// tab discovery.
+const probeTimeout = 2 * time.Second
+
 // Connect returns a chromedp allocator context connected to a browser on the given port.
+// Cancellation is cut off here: chromedp closes the target of every context that
+// ends, and with a RemoteAllocator that includes tabs attached through
+// WithTargetID. A deadline reaching a tab context therefore closes the user's tab.
 func Connect(ctx context.Context, port int) (context.Context, context.CancelFunc) {
-	return chromedp.NewRemoteAllocator(ctx, fmt.Sprintf("http://127.0.0.1:%d", port))
+	return chromedp.NewRemoteAllocator(context.WithoutCancel(ctx), fmt.Sprintf("http://127.0.0.1:%d", port))
 }
 
 // NewTab opens a new browser tab within an allocator context.
@@ -93,6 +100,18 @@ func NewTab(allocCtx context.Context) (context.Context, context.CancelFunc) {
 		chromedp.WithLogf(func(string, ...any) {}),
 		chromedp.WithErrorf(func(string, ...any) {}),
 	)
+}
+
+// AttachTab returns a context bound to an existing tab. The returned context has
+// no cancel function on purpose - cancelling it makes chromedp close that tab.
+func AttachTab(allocCtx context.Context, id TargetID) context.Context {
+	ctx, _ := chromedp.NewContext(
+		allocCtx,
+		chromedp.WithTargetID(id),
+		chromedp.WithLogf(func(string, ...any) {}),
+		chromedp.WithErrorf(func(string, ...any) {}),
+	)
+	return ctx
 }
 
 // TabInfo holds display information about a browser tab.
@@ -140,15 +159,23 @@ func CloseTabByID(id string) chromedp.ActionFunc {
 // the TargetID of the first visible one. No bootstrap tab is created.
 func visibleTabID(allocCtx context.Context, pageTabs []*target.Info) string {
 	for _, t := range pageTabs {
-		tabCtx, _ := chromedp.NewContext(
-			allocCtx,
-			chromedp.WithTargetID(t.TargetID),
-			chromedp.WithLogf(func(string, ...any) {}),
-			chromedp.WithErrorf(func(string, ...any) {}),
-		)
-		var state string
-		if err := chromedp.Run(tabCtx, chromedp.Evaluate(`document.visibilityState`, &state)); err == nil && state == "visible" {
-			return string(t.TargetID)
+		tabCtx := AttachTab(allocCtx, t.TargetID)
+		result := make(chan string, 1)
+		go func() {
+			var state string
+			if err := chromedp.Run(tabCtx, chromedp.Evaluate(`document.visibilityState`, &state)); err != nil {
+				state = ""
+			}
+			result <- state
+		}()
+		select {
+		case state := <-result:
+			if state == "visible" {
+				return string(t.TargetID)
+			}
+		case <-time.After(probeTimeout):
+			// Busy tab: leave the probe running and try the next one. Cancelling
+			// it would make chromedp close the tab.
 		}
 	}
 	return ""
@@ -208,24 +235,16 @@ func ExistingOrNewTab(allocCtx context.Context) (context.Context, context.Cancel
 	}
 
 	if len(pageTabs) == 0 {
-		return NewTab(allocCtx)
-	}
-
-	newTabCtx := func(id target.ID) (context.Context, context.CancelFunc) {
-		return chromedp.NewContext(
-			allocCtx,
-			chromedp.WithTargetID(id),
-			chromedp.WithLogf(func(string, ...any) {}),
-			chromedp.WithErrorf(func(string, ...any) {}),
-		)
+		ctx, _ := NewTab(allocCtx)
+		return ctx, func() {}
 	}
 
 	if activeID := visibleTabID(allocCtx, pageTabs); activeID != "" {
-		return newTabCtx(target.ID(activeID))
+		return AttachTab(allocCtx, target.ID(activeID)), func() {}
 	}
 
 	// Fallback: first page tab.
-	return newTabCtx(pageTabs[0].TargetID)
+	return AttachTab(allocCtx, pageTabs[0].TargetID), func() {}
 }
 
 // OpenTabInForeground opens the URL as the selected tab of the current window
@@ -237,12 +256,7 @@ func OpenTabInForeground(allocCtx context.Context, url string) bool {
 	if id == "" {
 		return false
 	}
-	tabCtx, _ := chromedp.NewContext(
-		allocCtx,
-		chromedp.WithTargetID(target.ID(id)),
-		chromedp.WithLogf(func(string, ...any) {}),
-		chromedp.WithErrorf(func(string, ...any) {}),
-	)
+	tabCtx := AttachTab(allocCtx, target.ID(id))
 	urlJSON, err := json.Marshal(url)
 	if err != nil {
 		return false

@@ -65,15 +65,7 @@ func Tab(ctx context.Context, variant string, port int, args []string) {
 		if !ok {
 			os.Exit(1)
 		}
-		// Intentionally no cancel: chromedp closes the target on cancel for
-		// WithTargetID contexts. The cleanup goroutine blocks on <-ctx.Done()
-		// which never fires (allocCtx derives from context.Background()), so
-		// it is killed at process exit without calling CloseTarget.
-		tabCtx, _ := chromedp.NewContext(allocCtx,
-			chromedp.WithTargetID(browser.TargetID(tab.ID)),
-			chromedp.WithLogf(func(string, ...any) {}),
-			chromedp.WithErrorf(func(string, ...any) {}),
-		)
+		tabCtx := browser.AttachTab(allocCtx, browser.TargetID(tab.ID))
 		if err := chromedp.Run(tabCtx, chromedp.Reload()); err != nil {
 			fmt.Fprintf(os.Stderr, "error refreshing tab: %v\n", err)
 			os.Exit(1)
