@@ -62,7 +62,7 @@ func Scroll(ctx context.Context, variant string, port int, args []string) {
 	var target string
 	switch {
 	case selector != "":
-		action = chromedp.ScrollIntoView(selector, chromedp.ByQuery)
+		action = chromedp.ScrollIntoView(MustResolveSelector(tabCtx, selector), chromedp.ByQuery)
 		target = selector
 	case *top:
 		action = chromedp.Evaluate(`window.scrollTo({left: 0, top: 0, behavior: "instant"})`, nil)

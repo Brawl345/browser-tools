@@ -35,26 +35,27 @@ func Fill(ctx context.Context, variant string, port int, args []string) {
 
 	allocCtx, _ := browser.Connect(ctx, port)
 	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
+	css := MustResolveSelector(tabCtx, selector)
 
 	actions := []chromedp.Action{
-		chromedp.WaitVisible(selector, chromedp.ByQuery),
-		chromedp.Click(selector, chromedp.ByQuery),
+		chromedp.WaitVisible(css, chromedp.ByQuery),
+		chromedp.Click(css, chromedp.ByQuery),
 	}
 	if *clear {
 		actions = append(actions, chromedp.Evaluate(
 			fmt.Sprintf(`(function(){
-				var el = document.querySelector(%q);
+				var el = document.querySelector(%s);
 				if (!el) return;
 				el.select();
 				el.value = '';
 				el.dispatchEvent(new Event('input', {bubbles:true}));
 				el.dispatchEvent(new Event('change', {bubbles:true}));
-			}())`, selector),
+			}())`, jsonStr(css)),
 			nil,
 		))
 	}
 	actions = append(actions,
-		chromedp.SendKeys(selector, text, chromedp.ByQuery),
+		chromedp.SendKeys(css, text, chromedp.ByQuery),
 	)
 
 	if err := chromedp.Run(tabCtx, actions...); err != nil {

@@ -14,7 +14,7 @@ import (
 func Screenshot(ctx context.Context, variant string, port int, args []string) {
 	fs := flag.NewFlagSet("screenshot", flag.ExitOnError)
 	fullPage := fs.Bool("full-page", false, "capture the entire page, not just the viewport")
-	selector := fs.String("selector", "", "capture only the element matching this CSS selector")
+	selector := fs.String("selector", "", "capture only the element matching this CSS selector or XPath")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: browser-tools screenshot [--full-page] [--selector <css>]")
 		fmt.Fprintln(os.Stderr)
@@ -40,10 +40,11 @@ func Screenshot(ctx context.Context, variant string, port int, args []string) {
 	var action chromedp.Action
 	switch {
 	case *selector != "":
+		css := MustResolveSelector(tabCtx, *selector)
 		var count int
-		countScript := fmt.Sprintf(`document.querySelectorAll(%s).length`, jsonStr(*selector))
+		countScript := fmt.Sprintf(`document.querySelectorAll(%s).length`, jsonStr(css))
 		action = chromedp.Tasks{
-			chromedp.WaitVisible(*selector, chromedp.ByQuery),
+			chromedp.WaitVisible(css, chromedp.ByQuery),
 			chromedp.Evaluate(countScript, &count),
 			chromedp.ActionFunc(func(context.Context) error {
 				if count > 1 {
@@ -51,7 +52,7 @@ func Screenshot(ctx context.Context, variant string, port int, args []string) {
 				}
 				return nil
 			}),
-			chromedp.Screenshot(*selector, &buf, chromedp.NodeVisible, chromedp.ByQuery),
+			chromedp.Screenshot(css, &buf, chromedp.NodeVisible, chromedp.ByQuery),
 		}
 	case *fullPage:
 		action = chromedp.FullScreenshot(&buf, 100)

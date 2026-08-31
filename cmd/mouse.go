@@ -16,7 +16,7 @@ import (
 
 func Mouse(ctx context.Context, variant string, port int, args []string) {
 	fs := flag.NewFlagSet("mouse", flag.ExitOnError)
-	to := fs.String("to", "", "target CSS selector for drag")
+	to := fs.String("to", "", "target CSS selector or XPath for drag")
 	force := fs.Bool("force", false, "dispatch JS events even if element is not visible")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: browser-tools mouse <action> [--to <selector>] [--force] <selector>")
@@ -47,12 +47,17 @@ func Mouse(ctx context.Context, variant string, port int, args []string) {
 
 	allocCtx, _ := browser.Connect(ctx, port)
 	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
+	css := MustResolveSelector(tabCtx, sel)
+	toCSS := *to
+	if action == "drag" {
+		toCSS = MustResolveSelector(tabCtx, *to)
+	}
 
 	var err error
 	if *force {
-		err = mouseForce(tabCtx, action, sel, *to)
+		err = mouseForce(tabCtx, action, css, toCSS)
 	} else {
-		err = mouseNative(tabCtx, action, sel, *to)
+		err = mouseNative(tabCtx, action, css, toCSS)
 	}
 
 	if err != nil {

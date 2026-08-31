@@ -50,9 +50,10 @@ func SelectDropdown(ctx context.Context, variant string, port int, args []string
 
 	allocCtx, _ := browser.Connect(ctx, port)
 	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
+	css := MustResolveSelector(tabCtx, selector)
 
 	if !*force {
-		if err := chromedp.Run(tabCtx, chromedp.WaitVisible(selector, chromedp.ByQuery)); err != nil {
+		if err := chromedp.Run(tabCtx, chromedp.WaitVisible(css, chromedp.ByQuery)); err != nil {
 			fmt.Fprintf(os.Stderr, "error: element not visible: %s\n", selector)
 			fmt.Fprintf(os.Stderr, "hint: use --force if the element is not visible\n")
 			os.Exit(1)
@@ -106,7 +107,7 @@ func SelectDropdown(ctx context.Context, variant string, port int, args []string
 		sel.dispatchEvent(new Event('change', { bubbles: true }));
 		return { ok: true, already: false, label: opt.text.trim(), value: opt.value, index: idx };
 	})()`,
-		jsonStr(selector),
+		jsonStr(css),
 		jsonStr(target),
 		jsonStr(mode),
 	)

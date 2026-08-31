@@ -52,9 +52,11 @@ func Upload(ctx context.Context, variant string, port int, args []string) {
 	allocCtx, _ := browser.Connect(ctx, port)
 	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
 
+	css := MustResolveSelector(tabCtx, sel)
+
 	if err := chromedp.Run(tabCtx,
-		chromedp.WaitReady(sel, chromedp.ByQuery),
-		chromedp.SetUploadFiles(sel, files, chromedp.ByQuery),
+		chromedp.WaitReady(css, chromedp.ByQuery),
+		chromedp.SetUploadFiles(css, files, chromedp.ByQuery),
 	); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)

@@ -82,7 +82,7 @@ func Element(ctx context.Context, variant string, port int, args []string) {
 		fmt.Fprintln(os.Stderr, "Usage: browser-tools element [--attr <name>] <selector>")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Reads tag, id, class, text, attributes, bounding box and visibility")
-		fmt.Fprintln(os.Stderr, "of the first element matching the CSS selector. Prints JSON.")
+		fmt.Fprintln(os.Stderr, "of the first element matching the CSS selector or XPath. Prints JSON.")
 		fmt.Fprintln(os.Stderr)
 		fs.PrintDefaults()
 	}
@@ -102,6 +102,7 @@ func Element(ctx context.Context, variant string, port int, args []string) {
 
 	allocCtx, _ := browser.Connect(ctx, port)
 	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
+	css := MustResolveSelector(tabCtx, sel)
 
 	script := fmt.Sprintf(`(function(){
 	const els = document.querySelectorAll(%s);
@@ -109,11 +110,11 @@ func Element(ctx context.Context, variant string, port int, args []string) {
 	const out = [];
 	for (let i = 0; i < els.length && i < %d; i++) out.push((%s)(els[i]));
 	return { count: els.length, elements: out };
-})()`, jsonStr(sel), elementSampleCap, buildElementInfoFn)
+})()`, jsonStr(css), elementSampleCap, buildElementInfoFn)
 
 	var raw []byte
 	if err := chromedp.Run(tabCtx,
-		chromedp.WaitReady(sel, chromedp.ByQuery),
+		chromedp.WaitReady(css, chromedp.ByQuery),
 		chromedp.Evaluate(script, &raw),
 	); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

@@ -13,7 +13,7 @@ import (
 
 func Key(ctx context.Context, variant string, port int, args []string) {
 	fs := flag.NewFlagSet("key", flag.ExitOnError)
-	sel := fs.String("selector", "", "CSS selector to focus before pressing the key")
+	sel := fs.String("selector", "", "CSS selector or XPath to focus before pressing the key")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: browser-tools key [--selector <sel>] <key>")
 		fmt.Fprintln(os.Stderr)
@@ -76,9 +76,10 @@ func Key(ctx context.Context, variant string, port int, args []string) {
 
 	var actions []chromedp.Action
 	if *sel != "" {
+		css := MustResolveSelector(tabCtx, *sel)
 		actions = append(actions,
-			chromedp.WaitVisible(*sel, chromedp.ByQuery),
-			chromedp.Focus(*sel, chromedp.ByQuery),
+			chromedp.WaitVisible(css, chromedp.ByQuery),
+			chromedp.Focus(css, chromedp.ByQuery),
 		)
 	}
 	actions = append(actions, chromedp.KeyEvent(resolvedKey))

@@ -37,6 +37,23 @@ All commands accept these flags **before** the command name:
 
 ---
 
+## Selectors
+
+Wherever a command takes a selector — as an argument or via `--selector`/`--to` — it accepts a CSS selector or an XPath expression. The selector is read as XPath when it starts with `/`, `./`, `(/` or `(./`; anything else is CSS. XPath is the way to address an element by its text:
+
+```bash
+./scripts/browser-tools mouse click "//button[normalize-space()='Sign in']"
+./scripts/browser-tools element "//a[contains(., 'Imprint')]" --attr href
+./scripts/browser-tools fill "//label[contains(.,'E-Mail')]/following::input[1]" "me@example.com"
+./scripts/browser-tools wait --absent "//div[@role='dialog']"
+```
+
+The expression must select element nodes. `//h1/text()` and `//a/@href` end in an error that names the cause; read attributes with `element --attr` instead.
+
+An XPath is evaluated in the page and each matched element is turned into a CSS path, so the command then works exactly as with a hand-written CSS selector — including the multi-match note of `element` and the "capturing the first" note of `screenshot`. `wait` polls the expression instead, so it also works for elements that appear during the wait.
+
+XPath reaches into the main document only, not into shadow roots or iframes.
+
 ## Commands
 
 ### navigate

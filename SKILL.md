@@ -22,6 +22,18 @@ Start Chrome with remote debugging (done automatically by every command, but can
 ./scripts/browser-tools start
 ```
 
+## Selectors
+
+Every command that takes a selector accepts a CSS selector or an XPath expression. A selector starting with `/`, `./` or `(/` is treated as XPath, which is the way to find an element by its text:
+
+```bash
+./scripts/browser-tools mouse click "//button[normalize-space()='Sign in']"
+./scripts/browser-tools element "//a[contains(., 'Imprint')]" --attr href
+./scripts/browser-tools fill "//label[contains(.,'E-Mail')]/following::input[1]" "me@example.com"
+```
+
+The XPath must select elements, so drop a trailing `/text()` or `/@href` — use `element --attr href` to read an attribute.
+
 ## Navigate to a web page
 
 ```bash

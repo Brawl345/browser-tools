@@ -38,6 +38,7 @@ func Check(ctx context.Context, variant string, port int, args []string) {
 
 	allocCtx, _ := browser.Connect(ctx, port)
 	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
+	css := MustResolveSelector(tabCtx, selector)
 
 	// Inspect the element first.
 	type elemInfo struct {
@@ -49,7 +50,7 @@ func Check(ctx context.Context, variant string, port int, args []string) {
 		const el = document.querySelector(%s);
 		if (!el) return { exists: false, type: "", checked: false };
 		return { exists: true, type: el.type || el.tagName.toLowerCase(), checked: !!el.checked };
-	})()`, jsonStr(selector))
+	})()`, jsonStr(css))
 
 	var raw []byte
 	if err := chromedp.Run(tabCtx, chromedp.Evaluate(script, &raw)); err != nil {
@@ -86,14 +87,14 @@ func Check(ctx context.Context, variant string, port int, args []string) {
 			el.dispatchEvent(new Event('input',  { bubbles: true }));
 			el.dispatchEvent(new Event('change', { bubbles: true }));
 			return true;
-		})()`, jsonStr(selector), wantChecked)
+		})()`, jsonStr(css), wantChecked)
 		var ok bool
 		if err := chromedp.Run(tabCtx, chromedp.Evaluate(forceScript, &ok)); err != nil || !ok {
 			fmt.Fprintf(os.Stderr, "error: failed to set element: %v\n", err)
 			os.Exit(1)
 		}
 	} else {
-		if err := chromedp.Run(tabCtx, chromedp.Click(selector, chromedp.ByQuery)); err != nil {
+		if err := chromedp.Run(tabCtx, chromedp.Click(css, chromedp.ByQuery)); err != nil {
 			fmt.Fprintf(os.Stderr, "error clicking element: %v\n", err)
 			fmt.Fprintf(os.Stderr, "hint: use --force if the element is not visible\n")
 			os.Exit(1)

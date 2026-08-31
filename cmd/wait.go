@@ -44,20 +44,15 @@ func Wait(ctx context.Context, variant string, port int, args []string) {
 		os.Exit(1)
 	}
 
-	var action chromedp.Action
 	var state string
 	switch {
 	case *hidden:
-		action = chromedp.WaitNotVisible(sel, chromedp.ByQuery)
 		state = "hidden"
 	case *present:
-		action = chromedp.WaitReady(sel, chromedp.ByQuery)
 		state = "present"
 	case *absent:
-		action = chromedp.WaitNotPresent(sel, chromedp.ByQuery)
 		state = "absent"
 	default:
-		action = chromedp.WaitVisible(sel, chromedp.ByQuery)
 		state = "visible"
 	}
 
@@ -69,7 +64,25 @@ func Wait(ctx context.Context, variant string, port int, args []string) {
 	allocCtx, _ := browser.Connect(ctx, port)
 	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
 
-	if err := chromedp.Run(tabCtx, action); err != nil {
+	// An XPath is polled: the element may only appear during the wait, so it
+	// cannot be resolved to a CSS selector up front.
+	run := func() error { return WaitXPath(ctx, tabCtx, sel, state) }
+	if !IsXPath(sel) {
+		var action chromedp.Action
+		switch state {
+		case "hidden":
+			action = chromedp.WaitNotVisible(sel, chromedp.ByQuery)
+		case "present":
+			action = chromedp.WaitReady(sel, chromedp.ByQuery)
+		case "absent":
+			action = chromedp.WaitNotPresent(sel, chromedp.ByQuery)
+		default:
+			action = chromedp.WaitVisible(sel, chromedp.ByQuery)
+		}
+		run = func() error { return chromedp.Run(tabCtx, action) }
+	}
+
+	if err := run(); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			fmt.Fprintf(os.Stderr, "%s✗%s timed out waiting for %s to be %s\n", ansiRed, ansiReset, sel, state)
 			os.Exit(1)

@@ -92,7 +92,7 @@ func Download(ctx context.Context, variant string, port int, args []string) {
 	})
 
 	// Click the element to trigger the download.
-	if err := chromedp.Run(tabCtx, chromedp.Click(sel, chromedp.ByQuery)); err != nil {
+	if err := chromedp.Run(tabCtx, chromedp.Click(MustResolveSelector(tabCtx, sel), chromedp.ByQuery)); err != nil {
 		fmt.Fprintf(os.Stderr, "error clicking element: %v\n", err)
 		os.Exit(1)
 	}
