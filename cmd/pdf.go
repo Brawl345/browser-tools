@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"browser-tools/browser"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 	flag "github.com/spf13/pflag"
@@ -68,13 +67,7 @@ func PDF(ctx context.Context, variant string, port int, args []string) {
 		}
 	}
 
-	if err := browser.EnsureRunning(variant, port); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	allocCtx, _ := browser.Connect(ctx, port)
-	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
+	tabCtx := MustTab(MustSession(ctx, variant, port))
 
 	params := page.PrintToPDF().
 		WithPaperWidth(paper[0]).

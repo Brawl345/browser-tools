@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"os"
 
-	"browser-tools/browser"
 	"github.com/chromedp/cdproto/domstorage"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
@@ -51,13 +50,7 @@ func Clear(ctx context.Context, variant string, port int, args []string) {
 		*doServiceWorkers = true
 	}
 
-	if err := browser.EnsureRunning(variant, port); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	allocCtx, _ := browser.Connect(ctx, port)
-	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
+	tabCtx := MustTab(MustSession(ctx, variant, port))
 
 	var currentURL, origin string
 	if *doLocalStorage || *doSession || *doIndexedDB || *doCacheStorage || *doServiceWorkers || (*doCookies && !*allOrigins) {

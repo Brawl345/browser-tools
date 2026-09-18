@@ -6,83 +6,67 @@ import (
 	"fmt"
 	"os"
 
-	"browser-tools/browser"
-	"github.com/chromedp/chromedp"
 	flag "github.com/spf13/pflag"
 )
 
-type boxInfo struct {
-	X      float64 `json:"x"`
-	Y      float64 `json:"y"`
-	Width  float64 `json:"width"`
-	Height float64 `json:"height"`
-}
+// elementDetailCap is how many matches are described in full, elementListCap how
+// many are listed in the short form, and elementAttrCap how many attribute
+// values are printed.
+const (
+	elementDetailCap = 1
+	elementListCap   = 10
+	elementAttrCap   = 100
+)
 
-type elementInfo struct {
-	Tag        string            `json:"tag"`
-	ID         *string           `json:"id,omitempty"`
-	Class      *string           `json:"class,omitempty"`
-	Text       *string           `json:"text,omitempty"`
-	Attributes map[string]string `json:"attributes,omitempty"`
-	Box        *boxInfo          `json:"box,omitempty"`
-	Visible    bool              `json:"visible"`
-	HTML       string            `json:"html,omitempty"`
-	Parents    string            `json:"parents,omitempty"`
-}
-
-// elementResult wraps the output when a selector matches more than one element.
-type elementResult struct {
-	Count    int           `json:"count"`
-	Note     string        `json:"note,omitempty"`
-	Elements []elementInfo `json:"elements"`
-}
-
-// elementSampleCap bounds how many matches the in-page script serialises, so a
-// broad selector (e.g. "div") can't produce a huge payload.
-const elementSampleCap = 10
-
-// elementShowLimit is how many matches are echoed by default on a multi-match.
-const elementShowLimit = 3
-
-// buildElementInfoFn is the in-page function that serialises an element into an
-// elementInfo. Shared by `element` (resolved via selector) and `pick-element`
-// (resolved via click) so both commands return an identical JSON shape.
-const buildElementInfoFn = `(el) => {
-	const attrs = {};
-	for (const a of el.attributes) attrs[a.name] = a.value;
+// buildElementInfoFn serialises one element. Shared with pick-element so both
+// commands return the same shape. `full` adds the parts that only make sense
+// for a single element.
+const buildElementInfoFn = `(el, full) => {
 	const r = el.getBoundingClientRect();
 	const s = getComputedStyle(el);
+	const out = {
+		tag:     el.tagName.toLowerCase(),
+		id:      el.id || undefined,
+		class:   (typeof el.className === "string" && el.className.trim()) ? el.className : undefined,
+		text:    (el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 200) || undefined,
+		box:     { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) },
+		visible: r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none" && s.opacity !== "0",
+	};
+	if ("value" in el && el.value !== undefined && el.value !== "") out.value = String(el.value).slice(0, 200);
+	if (el.checked !== undefined) out.checked = el.checked;
+	if (el.disabled) out.disabled = true;
+	if (!full) return out;
+
+	const attrs = {};
+	for (const a of el.attributes) attrs[a.name] = a.value;
+	out.attributes = attrs;
+
+	const style = { display: s.display, cursor: s.cursor, color: s.color, backgroundColor: s.backgroundColor, fontSize: s.fontSize };
+	const extra = { position: "static", zIndex: "auto", opacity: "1", visibility: "visible", pointerEvents: "auto", overflow: "visible" };
+	for (const k in extra) if (s[k] !== extra[k]) style[k] = s[k];
+	out.style = style;
+
 	const parents = [];
 	let cur = el.parentElement;
-	while (cur && cur !== document.body) {
-		const ptag = cur.tagName.toLowerCase();
-		const pid = cur.id ? "#" + cur.id : "";
-		const pcls = (typeof cur.className === "string" && cur.className.trim())
-			? "." + cur.className.trim().split(/\s+/).join(".") : "";
-		parents.push(ptag + pid + pcls);
+	while (cur && cur !== document.body && parents.length < 8) {
+		parents.push(cur.tagName.toLowerCase() +
+			(cur.id ? "#" + cur.id : "") +
+			(typeof cur.className === "string" && cur.className.trim() ? "." + cur.className.trim().split(/\s+/).join(".") : ""));
 		cur = cur.parentElement;
 	}
-	return {
-		tag:        el.tagName.toLowerCase(),
-		id:         el.id || null,
-		class:      (typeof el.className === "string" && el.className.trim()) ? el.className : null,
-		text:       (el.textContent || "").trim().slice(0, 200) || null,
-		attributes: attrs,
-		box:        { x: r.x, y: r.y, width: r.width, height: r.height },
-		visible:    r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none",
-		html:       el.outerHTML.slice(0, 500),
-		parents:    parents.join(" > "),
-	};
+	out.parents = parents.join(" > ") || undefined;
+	out.html = el.outerHTML.slice(0, 500);
+	return out;
 }`
 
 func Element(ctx context.Context, variant string, port int, args []string) {
 	fs := flag.NewFlagSet("element", flag.ExitOnError)
-	attr := fs.String("attr", "", "print only this attribute's value as plain text")
+	attr := fs.String("attr", "", "print one value per match as plain text: an attribute name, or text / html / value")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: browser-tools element [--attr <name>] <selector>")
 		fmt.Fprintln(os.Stderr)
-		fmt.Fprintln(os.Stderr, "Reads tag, id, class, text, attributes, bounding box and visibility")
-		fmt.Fprintln(os.Stderr, "of the first element matching the CSS selector or XPath. Prints JSON.")
+		fmt.Fprintln(os.Stderr, "Reads tag, text, value, attributes, box, computed style and visibility")
+		fmt.Fprintln(os.Stderr, "as JSON. With several matches it prints a short list of all of them.")
 		fmt.Fprintln(os.Stderr)
 		fs.PrintDefaults()
 	}
@@ -95,82 +79,80 @@ func Element(ctx context.Context, variant string, port int, args []string) {
 	}
 	sel := fs.Arg(0)
 
-	if err := browser.EnsureRunning(variant, port); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	allocCtx, _ := browser.Connect(ctx, port)
-	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
-	css := MustResolveSelector(tabCtx, sel)
-
-	script := fmt.Sprintf(`(function(){
-	const els = document.querySelectorAll(%s);
-	if (!els.length) return null;
-	const out = [];
-	for (let i = 0; i < els.length && i < %d; i++) out.push((%s)(els[i]));
-	return { count: els.length, elements: out };
-})()`, jsonStr(css), elementSampleCap, buildElementInfoFn)
-
-	var raw []byte
-	if err := chromedp.Run(tabCtx,
-		chromedp.WaitReady(css, chromedp.ByQuery),
-		chromedp.Evaluate(script, &raw),
-	); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-	if len(raw) == 0 || string(raw) == "null" {
-		fmt.Fprintf(os.Stderr, "error: element not found: %s\n", sel)
-		os.Exit(1)
-	}
-
-	var res elementResult
-	if err := json.Unmarshal(raw, &res); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
+	s := MustSession(ctx, variant, port)
+	m := Locate(ctx, s, sel, StatePresent)
 
 	if *attr != "" {
-		printAttr(res, *attr, sel)
+		printAttr(m, *attr, sel)
 		return
 	}
 
-	shown := res.Elements
-	if len(shown) > elementShowLimit {
-		shown = shown[:elementShowLimit]
+	full := "false"
+	limit := elementListCap
+	if m.Count <= elementDetailCap {
+		full = "true"
+		limit = elementDetailCap
 	}
-	out := elementResult{Count: res.Count, Elements: shown}
-	if res.Count > 1 {
-		out.Note = fmt.Sprintf("%d elements match %q; showing the first %d. Refine the selector (e.g. a parent prefix or :nth-of-type) to target a single element.",
-			res.Count, sel, len(shown))
+	body := fmt.Sprintf(`const hits = window.__btHits || [];
+		return hits.slice(0, %d).map(e => (%s)(e, %s));`, limit, buildElementInfoFn, full)
+
+	var elements []json.RawMessage
+	if err := OnHit(m.Tab, body, &elements); err != nil {
+		fail("%v", err)
+	}
+
+	out := map[string]any{"count": m.Count, "elements": elements}
+	if m.Count > len(elements) {
+		out["note"] = fmt.Sprintf("showing %d of %d matches; narrow the selector or use --attr to list a value for all of them", len(elements), m.Count)
 	}
 	printJSON(out)
 }
 
-func printAttr(res elementResult, attr, sel string) {
+// attrBody returns the JS expression that reads the wanted value off `e`.
+func attrBody(attr string) string {
+	switch attr {
+	case "text":
+		return `(e.textContent || "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim()`
+	case "html":
+		return `e.outerHTML`
+	case "value":
+		return `("value" in e ? String(e.value) : (e.getAttribute("value") || ""))`
+	default:
+		// Fall back to the DOM property, so live state such as `checked` or
+		// `disabled` is readable even though it is not an attribute.
+		return fmt.Sprintf(`(e.hasAttribute(%[1]s) ? e.getAttribute(%[1]s) : (%[1]s in e ? String(e[%[1]s]) : ""))`, jsonStr(attr))
+	}
+}
+
+func printAttr(m *Match, attr, sel string) {
+	body := fmt.Sprintf(`const hits = window.__btHits || [];
+		return hits.slice(0, %d).map(e => %s);`, elementAttrCap, attrBody(attr))
+
+	var values []string
+	if err := OnHit(m.Tab, body, &values); err != nil {
+		fail("%v", err)
+	}
+
 	printed := 0
-	for _, el := range res.Elements {
-		if v, ok := el.Attributes[attr]; ok {
-			fmt.Println(v)
-			printed++
+	for _, v := range values {
+		if v == "" {
+			continue
 		}
+		fmt.Println(v)
+		printed++
 	}
 	if printed == 0 {
-		fmt.Fprintf(os.Stderr, "error: attribute %q not present on any of %d match(es) for %s\n", attr, res.Count, sel)
-		os.Exit(1)
+		fail("no match for %s carries %q — `browser-tools element %s` shows what is there", sel, attr, sel)
 	}
-	if res.Count > len(res.Elements) {
-		fmt.Fprintf(os.Stderr, "note: %d elements match; printed the attribute for the first %d only — refine the selector for the rest\n",
-			res.Count, len(res.Elements))
+	if m.Count > len(values) {
+		fmt.Fprintf(os.Stderr, "note: printed %d of %d matches\n", len(values), m.Count)
 	}
 }
 
 func printJSON(v any) {
 	b, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+		fail("%v", err)
 	}
 	fmt.Println(string(b))
 }

@@ -8,10 +8,8 @@ import (
 
 	"browser-tools/browser"
 
-	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/extensions"
 	"github.com/chromedp/cdproto/target"
-	"github.com/chromedp/chromedp"
 	flag "github.com/spf13/pflag"
 )
 
@@ -33,8 +31,7 @@ func Extension(ctx context.Context, variant string, port int, args []string) {
 	}
 
 	if !browser.IsChromeForTesting(variant) {
-		fmt.Fprintf(os.Stderr, "error: extensions require Chrome for Testing — pass --browser cft-stable (install it with 'browser-tools update-cft')\n")
-		os.Exit(1)
+		fail("extensions require Chrome for Testing — pass --browser cft-stable (install it with 'browser-tools update-cft')")
 	}
 
 	rest := fs.Args()
@@ -44,39 +41,27 @@ func Extension(ctx context.Context, variant string, port int, args []string) {
 	}
 	sub, rest := rest[0], rest[1:]
 
-	if err := browser.EnsureRunning(variant, port); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+	needsArg := func() string {
+		if len(rest) < 1 {
+			fs.Usage()
+			os.Exit(1)
+		}
+		return rest[0]
 	}
-	allocCtx, _ := browser.Connect(ctx, port)
+
+	s := MustSession(ctx, variant, port)
 
 	switch sub {
 	case "load":
-		if len(rest) < 1 {
-			fs.Usage()
-			os.Exit(1)
-		}
-		extLoad(allocCtx, rest[0])
+		extLoad(s, needsArg())
 	case "list":
-		extList(allocCtx)
+		extList(s)
 	case "reload":
-		if len(rest) < 1 {
-			fs.Usage()
-			os.Exit(1)
-		}
-		extReload(allocCtx, rest[0])
+		extReload(s, needsArg())
 	case "uninstall":
-		if len(rest) < 1 {
-			fs.Usage()
-			os.Exit(1)
-		}
-		extUninstall(allocCtx, rest[0])
+		extUninstall(s, needsArg())
 	case "action":
-		if len(rest) < 1 {
-			fs.Usage()
-			os.Exit(1)
-		}
-		extAction(allocCtx, rest[0])
+		extAction(s, needsArg())
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand: %s\n\n", sub)
 		fs.Usage()
@@ -84,40 +69,28 @@ func Extension(ctx context.Context, variant string, port int, args []string) {
 	}
 }
 
-func extLoad(allocCtx context.Context, dir string) {
+func extLoad(s *browser.Session, dir string) {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+		fail("%v", err)
 	}
 	if _, err := os.Stat(filepath.Join(abs, "manifest.json")); err != nil {
-		fmt.Fprintf(os.Stderr, "error: no manifest.json in %s\n", abs)
-		os.Exit(1)
+		fail("no manifest.json in %s", abs)
 	}
 
-	bootstrapCtx, cancel := browser.NewTab(allocCtx)
-	defer cancel()
-
 	var id string
-	if err := chromedp.Run(bootstrapCtx, chromedp.ActionFunc(func(ctx context.Context) error {
-		c := chromedp.FromContext(ctx)
+	if err := s.Do(func(ex context.Context) error {
 		var e error
-		id, e = extensions.LoadUnpacked(abs).Do(cdp.WithExecutor(ctx, c.Browser))
+		id, e = extensions.LoadUnpacked(abs).Do(ex)
 		return e
-	})); err != nil {
-		fmt.Fprintf(os.Stderr, "error loading extension: %v\n", err)
-		os.Exit(1)
+	}); err != nil {
+		fail("cannot load the extension: %v", err)
 	}
 	fmt.Printf("%s✓%s loaded %s\n", ansiGreen, ansiReset, id)
 }
 
-func extReload(allocCtx context.Context, id string) {
-	bootstrapCtx, cancel := browser.NewTab(allocCtx)
-	defer cancel()
-
-	if err := chromedp.Run(bootstrapCtx, chromedp.ActionFunc(func(ctx context.Context) error {
-		c := chromedp.FromContext(ctx)
-		ex := cdp.WithExecutor(ctx, c.Browser)
+func extReload(s *browser.Session, id string) {
+	if err := s.Do(func(ex context.Context) error {
 		exts, err := extensions.GetExtensions().Do(ex)
 		if err != nil {
 			return err
@@ -129,30 +102,24 @@ func extReload(allocCtx context.Context, id string) {
 			}
 		}
 		if path == "" {
-			return fmt.Errorf("no loaded extension with id %s", id)
+			return fmt.Errorf("no loaded extension has the id %s", id)
 		}
 		_, err = extensions.LoadUnpacked(path).Do(ex)
 		return err
-	})); err != nil {
-		fmt.Fprintf(os.Stderr, "error reloading extension: %v\n", err)
-		os.Exit(1)
+	}); err != nil {
+		fail("cannot reload the extension: %v", err)
 	}
 	fmt.Printf("%s✓%s reloaded %s\n", ansiGreen, ansiReset, id)
 }
 
-func extList(allocCtx context.Context) {
-	bootstrapCtx, cancel := browser.NewTab(allocCtx)
-	defer cancel()
-
+func extList(s *browser.Session) {
 	var exts []*extensions.ExtensionInfo
-	if err := chromedp.Run(bootstrapCtx, chromedp.ActionFunc(func(ctx context.Context) error {
-		c := chromedp.FromContext(ctx)
+	if err := s.Do(func(ex context.Context) error {
 		var e error
-		exts, e = extensions.GetExtensions().Do(cdp.WithExecutor(ctx, c.Browser))
+		exts, e = extensions.GetExtensions().Do(ex)
 		return e
-	})); err != nil {
-		fmt.Fprintf(os.Stderr, "error listing extensions: %v\n", err)
-		os.Exit(1)
+	}); err != nil {
+		fail("cannot list extensions: %v", err)
 	}
 
 	if len(exts) == 0 {
@@ -168,44 +135,24 @@ func extList(allocCtx context.Context) {
 	}
 }
 
-func extUninstall(allocCtx context.Context, id string) {
-	bootstrapCtx, cancel := browser.NewTab(allocCtx)
-	defer cancel()
-
-	if err := chromedp.Run(bootstrapCtx, chromedp.ActionFunc(func(ctx context.Context) error {
-		c := chromedp.FromContext(ctx)
-		return extensions.Uninstall(id).Do(cdp.WithExecutor(ctx, c.Browser))
-	})); err != nil {
-		fmt.Fprintf(os.Stderr, "error uninstalling extension: %v\n", err)
-		os.Exit(1)
+func extUninstall(s *browser.Session, id string) {
+	if err := s.Do(func(ex context.Context) error {
+		return extensions.Uninstall(id).Do(ex)
+	}); err != nil {
+		fail("cannot uninstall the extension: %v", err)
 	}
 	fmt.Printf("%s✓%s uninstalled %s\n", ansiGreen, ansiReset, id)
 }
 
-func extAction(allocCtx context.Context, id string) {
-	bootstrapCtx, cancel := browser.NewTab(allocCtx)
-	defer cancel()
-
-	if err := chromedp.Run(bootstrapCtx, chromedp.ActionFunc(func(context.Context) error { return nil })); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	bootstrapID := string(chromedp.FromContext(bootstrapCtx).Target.TargetID)
+func extAction(s *browser.Session, id string) {
+	// The Extensions domain addresses tab targets, whose IDs differ from the
+	// page targets everything else uses; the URL links the two.
 	activeURL := ""
-	if pageID := browser.ActiveTabID(allocCtx, bootstrapID); pageID != "" {
-		if tabs, err := browser.GetPageTabs(bootstrapCtx, bootstrapID); err == nil {
-			for _, t := range tabs {
-				if t.ID == pageID {
-					activeURL = t.URL
-				}
-			}
-		}
+	if t, err := s.ActiveTarget(); err == nil && t != nil {
+		activeURL = t.URL
 	}
 
-	if err := chromedp.Run(bootstrapCtx, chromedp.ActionFunc(func(ctx context.Context) error {
-		c := chromedp.FromContext(ctx)
-		ex := cdp.WithExecutor(ctx, c.Browser)
+	if err := s.Do(func(ex context.Context) error {
 		tabs, err := target.GetTargets().WithFilter(target.Filter{{Type: "tab"}}).Do(ex)
 		if err != nil {
 			return err
@@ -221,9 +168,8 @@ func extAction(allocCtx context.Context, id string) {
 			}
 		}
 		return extensions.TriggerAction(id, string(chosen)).Do(ex)
-	})); err != nil {
-		fmt.Fprintf(os.Stderr, "error triggering action: %v\n", err)
-		os.Exit(1)
+	}); err != nil {
+		fail("cannot trigger the action: %v", err)
 	}
 	fmt.Printf("%s✓%s triggered action for %s\n", ansiGreen, ansiReset, id)
 }

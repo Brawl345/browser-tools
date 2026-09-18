@@ -6,313 +6,157 @@ compatibility: Requires Chrome
 
 # Browser Tools
 
-This skill provides a compiled Go binary (`browser-tools`) to interact with a web browser via Chrome DevTools Protocol. Commands automatically wait for elements and start the browser if needed. The binary is located at the skill's base dir.
-
-**IMPORTANT:** Always prefix the binary path when running commands:
+A compiled Go binary that drives Chrome over the DevTools Protocol. Run it with its full path:
 
 ```bash
 {basedir}/scripts/browser-tools <command> [options]
 ```
 
-## Start
-
-Start Chrome with remote debugging (done automatically by every command, but can be done explicitly):
-
-```bash
-./scripts/browser-tools start
-```
+Every command waits by itself. It polls until the element is there and the page has gone quiet, so adding `sleep` only makes things slower. Commands work on the tab that is in front and keep looking while they wait, which picks up a dialog that opens in a new tab. When a selector does not resolve, the error names the tab and says whether the element was missing, invisible or covered.
 
 ## Selectors
 
-Every command that takes a selector accepts a CSS selector or an XPath expression. A selector starting with `/`, `./` or `(/` is treated as XPath, which is the way to find an element by its text:
+Anywhere a selector is taken, three kinds work. Text is usually the shortest:
 
 ```bash
-./scripts/browser-tools mouse click "//button[normalize-space()='Sign in']"
-./scripts/browser-tools element "//a[contains(., 'Imprint')]" --attr href
-./scripts/browser-tools fill "//label[contains(.,'E-Mail')]/following::input[1]" "me@example.com"
+./scripts/browser-tools mouse click "text=Sign in"      # visible text, button value, aria-label, placeholder, alt
+./scripts/browser-tools mouse click "#submit"           # CSS, reaches into open shadow roots
+./scripts/browser-tools mouse click "//tr[3]//a"        # XPath (starts with / or ./)
 ```
 
-The XPath must select elements, so drop a trailing `/text()` or `/@href` — use `element --attr href` to read an attribute.
+`text=` matches case-insensitively, prefers an exact label over a partial one, and picks the innermost element carrying the text. On a page that comes in several languages the label changes with the locale, so a CSS selector holds up better there.
 
-## Navigate to a web page
+## Do this, not JavaScript
+
+`evaluate-js` is the last resort. These cover almost everything agents write scripts for:
+
+| Instead of | Use |
+|---|---|
+| `el.click()`, `dispatchEvent` | `mouse click <sel>` (`--force` for hidden elements) |
+| `el.textContent`, `outerHTML` | `element <sel> --attr text` / `--attr html` |
+| `getBoundingClientRect`, `getComputedStyle` | `element <sel>`, whose JSON has `box` and `style` |
+| `querySelectorAll(...).length` | `element <sel>`, whose JSON has `count` |
+| `el.value = x`, `el.checked = true` | `fill <sel> <text>`, `check <sel>` |
+| `scrollIntoView`, `window.scrollTo` | `scroll <sel>` / `scroll --y <n>` |
+| `location.href = x`, `location.reload()` | `navigate <url>`, `reload` |
+| `localStorage`, `document.cookie` | `dom-storage`, `cookie` |
+| `setTimeout` / polling loops | `wait <sel>` |
+
+## Pages
 
 ```bash
-./scripts/browser-tools navigate https://example.com
-# Open in a new tab
+./scripts/browser-tools navigate https://example.com     # waits for the load event
 ./scripts/browser-tools navigate https://example.com --new-tab
+./scripts/browser-tools reload                           # --hard bypasses the cache
+./scripts/browser-tools scroll "#section"                # or --x/--y/--top/--bottom
+./scripts/browser-tools resize 1280 720                   # --reset restores the default
+./scripts/browser-tools tab                               # --activate/--close/--refresh <n>
 ```
 
-## Execute JavaScript
-
-NOTE: Always prefer specialized commands like `html`, `mouse`, `network` or `element`/`pick-element` whenever possible.
-
-**IMPORTANT:** Top-level `return` statements cause a `SyntaxError`. Always wrap multi-statement scripts in an IIFE: `(function() { ...; return result; })()`
+## Reading
 
 ```bash
-./scripts/browser-tools evaluate-js "document.querySelectorAll('a').length"
-# Multi-line via heredoc
-./scripts/browser-tools evaluate-js - <<'EOF'
-(function() {
-  const elements = document.querySelectorAll('.item');
-  return elements.length;
-})()
-EOF
-# From a file
-./scripts/browser-tools evaluate-js path/to/script.js
-```
-
-## Pick DOM elements
-
-Instruct the user to interactively pick a DOM element:
-
-```bash
-./scripts/browser-tools pick-element "Click the submit button"
-./scripts/browser-tools pick-element "Select all product cards"
-```
-
-Returns a JSON array of selected elements, each with tag, id, class, text, attributes, bounding box, visibility, HTML and parent hierarchy.
-
-## Read element info
-
-Read a known CSS selector's properties as JSON — without writing JS. Returns tag, id, class, text, attributes, bounding box and visibility:
-
-```bash
-./scripts/browser-tools element "button#submit"
-# Print only one attribute's value as plain text
-./scripts/browser-tools element "a.download" --attr href
-```
-
-Always prints `{count, elements}` (same shape regardless of how many match). `count` is the total number of matches; `elements` holds a sample of the first few. On multiple matches a `note` field advises refining the selector.
-
-## Wait for an element
-
-Block until an element reaches a state, then exit (times out after `--timeout`):
-
-```bash
-./scripts/browser-tools wait "#results"            # wait until visible (default)
-./scripts/browser-tools wait "#spinner" --hidden   # present but not visible
-./scripts/browser-tools wait "#lazy" --present     # exists in the DOM
-./scripts/browser-tools wait "#spinner" --absent   # gone from the DOM
-```
-
-## Mouse actions
-
-```bash
-./scripts/browser-tools mouse click "button#submit"
-./scripts/browser-tools mouse dblclick ".item"
-./scripts/browser-tools mouse hover "nav .menu-item"
-./scripts/browser-tools mouse right-click ".context-menu-trigger"
-./scripts/browser-tools mouse drag ".draggable" --to ".drop-zone"
-# Force JS dispatch for hidden elements
-./scripts/browser-tools mouse click ".hidden-btn" --force
-```
-
-## Fill text fields
-
-```bash
-./scripts/browser-tools fill "input#username" "john_doe"
-./scripts/browser-tools fill "textarea#comment" "Hello, world!" --clear
-```
-
-## Check/uncheck checkboxes and radio buttons
-
-```bash
-./scripts/browser-tools check "input#accept-terms"
-./scripts/browser-tools check "input[name='newsletter']" --uncheck
-./scripts/browser-tools check "input[type='radio'][value='option1']"
-# Force for hidden elements
-./scripts/browser-tools check "input#hidden" --force
-```
-
-## Press keyboard keys
-
-Common keys: `Enter`, `Escape`, `Tab`, `Backspace`, `Delete`, `ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown`
-
-```bash
-./scripts/browser-tools key "Enter"
-./scripts/browser-tools key "Escape"
-./scripts/browser-tools key "a" --selector "input#search"
-```
-
-## Upload files
-
-```bash
-./scripts/browser-tools upload "input[type='file']" /path/to/file.pdf
-./scripts/browser-tools upload "#file-upload" /path/to/image1.jpg /path/to/image2.png
-```
-
-## Download files
-
-```bash
-./scripts/browser-tools --timeout 60s download "a[href='/report.pdf']"
-./scripts/browser-tools --timeout 60s download "button#download" --output ~/Documents/report.pdf
-```
-
-## Select dropdown options
-
-```bash
-./scripts/browser-tools select "select#country" "US"
-./scripts/browser-tools select "select[name='color']" "Red" --by-label
-./scripts/browser-tools select "#quantity" "2" --by-index
-```
-
-## Cookies
-
-### List cookies
-
-```bash
-./scripts/browser-tools cookie
-# All cookies from all origins
-./scripts/browser-tools cookie --all
-```
-
-### Clear cookies
-
-```bash
-./scripts/browser-tools clear --cookies
-# All origins
-./scripts/browser-tools clear --cookies --all-origins
-```
-
-## Local/Session storage
-
-### Show storage
-
-```bash
-./scripts/browser-tools dom-storage
-./scripts/browser-tools dom-storage --local
-./scripts/browser-tools dom-storage --session
-```
-
-### Clear storage
-
-```bash
-./scripts/browser-tools clear --local-storage
-./scripts/browser-tools clear --session-storage
-```
-
-## Clear browser data
-
-```bash
-# Clear everything for the current origin
-./scripts/browser-tools clear --all
-# Individual types
-./scripts/browser-tools clear --cookies --cache
-./scripts/browser-tools clear --local-storage --session-storage --indexeddb
-./scripts/browser-tools clear --cache-storage --service-workers
-# All origins (cookies and cache only — storage is always per-origin)
-./scripts/browser-tools clear --all --all-origins
-```
-
-## Get console messages
-
-```bash
-./scripts/browser-tools console
-./scripts/browser-tools console --errors-only
-```
-
-## Capture network requests
-
-ALWAYS run this command in a tmux pane or background agent/process — it blocks until Ctrl+C.
-
-```bash
-./scripts/browser-tools network
-./scripts/browser-tools network --type fetch --show-body
-./scripts/browser-tools network --filter "api\.example\.com" --show-headers
-```
-
-## Intercept network requests
-
-Block, redirect, or modify in-flight requests. One action per run, chosen by subcommand: `block`, `redirect`, `modify`, `mock`. ALWAYS run this command in a tmux pane or background agent/process — it blocks until Ctrl+C. Every action takes `--url` (wildcards `*`/`?`) and `--type` to select which requests are intercepted; every other request passes through untouched.
-
-```bash
-# Block matching requests
-./scripts/browser-tools intercept block --url "*doubleclick*"
-# Redirect to another URL (transparent to the page)
-./scripts/browser-tools intercept redirect https://example.com/mock --url "*/api/*"
-# Add/override or remove request headers
-./scripts/browser-tools intercept modify --set-header "Authorization: Bearer x" --remove-header "Cookie"
-# Mock a response without hitting the server
-./scripts/browser-tools intercept mock --url "*/api/data" --status 200 --body '{"ok":true}' --content-type application/json
-```
-
-## Get HTML content
-
-```bash
-./scripts/browser-tools html
-./scripts/browser-tools html --filter "<button.*submit.*>"
+./scripts/browser-tools element "button#submit"           # JSON: count, text, value, attributes, box, style, visible
+./scripts/browser-tools element "a.download" --attr href  # one line per match: any attribute, or text / html / value
 ./scripts/browser-tools html --filter "data-id=\"\d+\"" --lines 10
+./scripts/browser-tools console --errors-only
+./scripts/browser-tools cookie                            # --all for every origin
+./scripts/browser-tools dom-storage                       # --local / --session
 ```
 
-## Screenshots
+With one match `element` prints everything about it; with several it prints a short entry per match.
+
+## Acting
 
 ```bash
-./scripts/browser-tools screenshot
-./scripts/browser-tools screenshot --full-page
-./scripts/browser-tools screenshot --selector "#main"
+./scripts/browser-tools mouse click "text=Sign in"        # also dblclick, hover, right-click
+./scripts/browser-tools mouse drag ".card" --to ".column-2"
+./scripts/browser-tools fill "input#user" "john" --clear
+./scripts/browser-tools check "input#terms"               # --uncheck to clear it
+./scripts/browser-tools select "select#country" "US"      # --by-label / --by-index
+./scripts/browser-tools key Enter --selector "input#search"
+./scripts/browser-tools upload "input[type=file]" a.jpg b.png
+./scripts/browser-tools --timeout 60s download "a.report" --output ~/report.pdf
 ```
 
-## Save page as PDF
+Add `--force` to `mouse`, `check` or `select` to act through JavaScript on an element that is not visible.
+
+## Waiting
+
+Only needed for a state the acting commands do not already wait for:
 
 ```bash
-./scripts/browser-tools pdf
-./scripts/browser-tools pdf --format letter --landscape --output ~/Documents/page.pdf
-./scripts/browser-tools pdf --margin 0.2 --header-footer
+./scripts/browser-tools wait "#results"            # visible (default)
+./scripts/browser-tools wait "#spinner" --absent   # also --hidden, --present
+./scripts/browser-tools wait                       # until the page stops loading
 ```
 
-## Scroll
+## Capture
 
 ```bash
-./scripts/browser-tools scroll "#section"      # scroll element into view
-./scripts/browser-tools scroll --x 0 --y 800   # scroll to X/Y position
-./scripts/browser-tools scroll --top
-./scripts/browser-tools scroll --bottom
+./scripts/browser-tools screenshot --output /tmp/shot.png   # --full-page or --selector <sel>
+./scripts/browser-tools pdf --format letter --landscape --output ~/page.pdf
+./scripts/browser-tools pick-element "Click the submit button"
 ```
 
-## Resize viewport
+`pick-element` asks the user to click elements in the page and returns them as JSON.
 
-Set the viewport size:
+## Network
+
+Both stream until Ctrl+C. Run them in a tmux pane or a background process.
 
 ```bash
-./scripts/browser-tools resize 1280 720
-./scripts/browser-tools resize 375 812
-./scripts/browser-tools resize --reset   # restore the default size
+./scripts/browser-tools network --type fetch --show-body --filter "api\.example\.com"
+./scripts/browser-tools intercept block --url "*doubleclick*"
+./scripts/browser-tools intercept redirect https://example.com/mock --url "*/api/*"
+./scripts/browser-tools intercept mock --url "*/api/data" --status 200 --body '{"ok":true}'
+./scripts/browser-tools intercept modify --set-header "Authorization: Bearer x"
 ```
 
-## Manage tabs
+## Browser data
 
 ```bash
-./scripts/browser-tools tab
-./scripts/browser-tools tab --activate 2
-./scripts/browser-tools tab --close 3
-./scripts/browser-tools tab --refresh 1
+./scripts/browser-tools clear --all                 # current origin
+./scripts/browser-tools clear --cookies --cache --all-origins
+./scripts/browser-tools clear --local-storage --session-storage --indexeddb
 ```
 
 ## Extensions
 
+Needs a Chrome for Testing build (`--browser cft-stable`, installed via `update-cft`).
+
 ```bash
-./scripts/browser-tools extension load ./my-extension   # prints the extension ID
+./scripts/browser-tools extension load ./my-extension    # prints the ID
+./scripts/browser-tools extension reload <id>            # pick up code changes
 ./scripts/browser-tools extension list
-./scripts/browser-tools extension reload <id>           # pick up code changes
-./scripts/browser-tools extension action <id>           # click the toolbar action
+./scripts/browser-tools extension action <id>            # click the toolbar action
 ./scripts/browser-tools extension uninstall <id>
 ```
 
-After `action`, the popup becomes the active tab — interact with it using the regular commands (`mouse`, `fill`, `element`, `evaluate-js`, `screenshot`, …).
+To work on a popup or options page, open it as a normal tab with `navigate chrome-extension://<id>/popup.html`. Every command then applies to it.
+
+## JavaScript
+
+```bash
+./scripts/browser-tools evaluate-js "document.querySelectorAll('a').length"
+./scripts/browser-tools evaluate-js path/to/script.js
+./scripts/browser-tools evaluate-js - <<'EOF'
+(function() { return [...document.querySelectorAll('.item')].map(e => e.dataset.id); })()
+EOF
+```
+
+A top-level `return` is a syntax error, so wrap statements in `(function(){ … })()`.
 
 ## Global options
 
-All commands support these flags (placed before the command):
+Accepted before or after the command:
 
 ```bash
---browser string     # chrome-stable, chrome-beta, chrome-dev, chrome-canary,
-                     # cft-stable, cft-beta, cft-dev, cft-canary (default: chrome-canary)
---port int           # remote debugging port (default: 9222)
---timeout duration   # timeout for element-waiting commands (default: 10s)
-                     # increase for slow pages or large downloads, e.g. --timeout 60s
+--browser <variant>   # chrome-stable|beta|dev|canary, cft-stable|beta|dev|canary
+--port <n>            # remote debugging port (default 9222)
+--timeout <duration>  # how long to wait for elements and loads (default 10s)
 ```
 
 ## More
 
-For detailed API reference, see [REFERENCE.md](REFERENCE.md).
-
+Full API details: [REFERENCE.md](REFERENCE.md).

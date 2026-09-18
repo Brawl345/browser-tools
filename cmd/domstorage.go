@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"os"
 
-	"browser-tools/browser"
 	"github.com/chromedp/cdproto/domstorage"
 	"github.com/chromedp/chromedp"
 	flag "github.com/spf13/pflag"
@@ -32,13 +31,7 @@ func DOMStorage(ctx context.Context, variant string, port int, args []string) {
 	showLocal := !*sessionOnly
 	showSession := !*localOnly
 
-	if err := browser.EnsureRunning(variant, port); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	allocCtx, _ := browser.Connect(ctx, port)
-	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
+	tabCtx := MustTab(MustSession(ctx, variant, port))
 
 	var currentURL string
 	if err := chromedp.Run(tabCtx, chromedp.Location(&currentURL)); err != nil {

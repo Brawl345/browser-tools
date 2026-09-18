@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"browser-tools/browser"
+
 	flag "github.com/spf13/pflag"
 )
 

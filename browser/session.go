@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"sort"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	cdp "github.com/chromedp/cdproto/cdp"
@@ -81,36 +83,26 @@ func EnsureRunning(variant string, port int) error {
 	return Launch(variant, port)
 }
 
-// probeTimeout caps a single visibilityState check so one busy tab cannot stall
-// tab discovery.
-const probeTimeout = 2 * time.Second
+// probeTimeout caps the round of focus probes, so a tab stuck in a long script
+// cannot stall tab discovery.
+const probeTimeout = 700 * time.Millisecond
 
-// Connect returns a chromedp allocator context connected to a browser on the given port.
-// Cancellation is cut off here: chromedp closes the target of every context that
-// ends, and with a RemoteAllocator that includes tabs attached through
-// WithTargetID. A deadline reaching a tab context therefore closes the user's tab.
-func Connect(ctx context.Context, port int) (context.Context, context.CancelFunc) {
-	return chromedp.NewRemoteAllocator(context.WithoutCancel(ctx), fmt.Sprintf("http://127.0.0.1:%d", port))
+func quietOpts() []chromedp.ContextOption {
+	return []chromedp.ContextOption{
+		chromedp.WithLogf(func(string, ...any) {}),
+		chromedp.WithErrorf(func(string, ...any) {}),
+	}
 }
 
 // NewTab opens a new browser tab within an allocator context.
 func NewTab(allocCtx context.Context) (context.Context, context.CancelFunc) {
-	return chromedp.NewContext(
-		allocCtx,
-		chromedp.WithLogf(func(string, ...any) {}),
-		chromedp.WithErrorf(func(string, ...any) {}),
-	)
+	return chromedp.NewContext(allocCtx, quietOpts()...)
 }
 
 // AttachTab returns a context bound to an existing tab. The returned context has
 // no cancel function on purpose - cancelling it makes chromedp close that tab.
 func AttachTab(allocCtx context.Context, id TargetID) context.Context {
-	ctx, _ := chromedp.NewContext(
-		allocCtx,
-		chromedp.WithTargetID(id),
-		chromedp.WithLogf(func(string, ...any) {}),
-		chromedp.WithErrorf(func(string, ...any) {}),
-	)
+	ctx, _ := chromedp.NewContext(allocCtx, append(quietOpts(), chromedp.WithTargetID(id))...)
 	return ctx
 }
 
@@ -121,148 +113,183 @@ type TabInfo struct {
 	URL   string
 }
 
-// GetPageTabs returns all open page tabs from within an action context, excluding the given target ID.
-// Results are sorted by target ID to ensure a stable, deterministic order across calls.
-func GetPageTabs(ctx context.Context, excludeID string) ([]TabInfo, error) {
-	c := chromedp.FromContext(ctx)
-	all, err := target.GetTargets().Do(cdp.WithExecutor(ctx, c.Browser))
+// Session is a connection to a running browser. It owns a browser-level
+// websocket that answers target queries without opening a throwaway tab, and
+// caches one attached context per tab so repeated lookups stay cheap.
+type Session struct {
+	Alloc context.Context
+
+	brCtx context.Context
+	mu    sync.Mutex
+	tabs  map[TargetID]context.Context
+}
+
+// Open starts the browser if needed and connects to it.
+func Open(ctx context.Context, variant string, port int) (*Session, error) {
+	if err := EnsureRunning(variant, port); err != nil {
+		return nil, err
+	}
+	// Cancellation is cut off here: chromedp closes the target of every context
+	// that ends, and with a RemoteAllocator that includes tabs attached through
+	// WithTargetID. A deadline reaching a tab context would close the user's tab.
+	allocCtx, _ := chromedp.NewRemoteAllocator(context.WithoutCancel(ctx), fmt.Sprintf("http://127.0.0.1:%d", port))
+
+	// A chromedp context normally creates its own tab on first use. Allocating
+	// the browser by hand attaches to the websocket only, so target queries and
+	// tab listings never disturb the user's window.
+	brCtx, _ := chromedp.NewContext(allocCtx, quietOpts()...)
+	c := chromedp.FromContext(brCtx)
+	b, err := c.Allocator.Allocate(brCtx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot talk to the browser on port %d: %w", port, err)
+	}
+	c.Browser = b
+
+	return &Session{Alloc: allocCtx, brCtx: brCtx, tabs: map[TargetID]context.Context{}}, nil
+}
+
+// Tab returns a cached context attached to the given tab.
+func (s *Session) Tab(id TargetID) context.Context {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if ctx, ok := s.tabs[id]; ok {
+		return ctx
+	}
+	ctx := AttachTab(s.Alloc, id)
+	s.tabs[id] = ctx
+	return ctx
+}
+
+// Do runs a browser-level CDP call. The context it hands over already carries
+// the browser executor, so domains that live outside a tab (Target, Extensions,
+// Browser) work without opening one.
+func (s *Session) Do(fn func(ctx context.Context) error) error {
+	c := chromedp.FromContext(s.brCtx)
+	return fn(cdp.WithExecutor(s.brCtx, c.Browser))
+}
+
+// Targets returns every page tab, oldest first.
+func (s *Session) Targets() ([]*target.Info, error) {
+	c := chromedp.FromContext(s.brCtx)
+	all, err := target.GetTargets().Do(cdp.WithExecutor(s.brCtx, c.Browser))
 	if err != nil {
 		return nil, err
 	}
-	var tabs []TabInfo
+	var pages []*target.Info
 	for _, t := range all {
-		if t.Type == "page" && string(t.TargetID) != excludeID {
-			tabs = append(tabs, TabInfo{ID: string(t.TargetID), Title: t.Title, URL: t.URL})
+		if t.Type == "page" && t.Subtype == "" {
+			pages = append(pages, t)
 		}
+	}
+	return pages, nil
+}
+
+// Tabs returns every page tab as display info.
+func (s *Session) Tabs() ([]TabInfo, error) {
+	pages, err := s.Targets()
+	if err != nil {
+		return nil, err
+	}
+	tabs := make([]TabInfo, 0, len(pages))
+	for _, t := range pages {
+		tabs = append(tabs, TabInfo{ID: string(t.TargetID), Title: t.Title, URL: t.URL})
 	}
 	sort.Slice(tabs, func(i, j int) bool { return tabs[i].ID < tabs[j].ID })
 	return tabs, nil
 }
 
-// ActivateTabByID activates a tab by its target ID from within an action context.
-func ActivateTabByID(id string) chromedp.ActionFunc {
-	return func(ctx context.Context) error {
-		c := chromedp.FromContext(ctx)
-		return target.ActivateTarget(target.ID(id)).Do(cdp.WithExecutor(ctx, c.Browser))
+// ActiveTarget returns the tab the user is looking at. The tab holding keyboard
+// focus wins; when the browser itself is in the background, the selected tab of
+// a window is taken instead. Newer tabs beat older ones, so a dialog that just
+// opened is picked up rather than the page that spawned it.
+func (s *Session) ActiveTarget() (*target.Info, error) {
+	pages, err := s.Targets()
+	if err != nil {
+		return nil, err
 	}
-}
-
-// CloseTabByID closes a tab by its target ID from within an action context.
-func CloseTabByID(id string) chromedp.ActionFunc {
-	return func(ctx context.Context) error {
-		c := chromedp.FromContext(ctx)
-		return target.CloseTarget(target.ID(id)).Do(cdp.WithExecutor(ctx, c.Browser))
+	if len(pages) == 0 {
+		return nil, nil
 	}
-}
 
-// visibleTabID checks visibilityState on each tab in pageTabs and returns
-// the TargetID of the first visible one. No bootstrap tab is created.
-func visibleTabID(allocCtx context.Context, pageTabs []*target.Info) string {
-	for _, t := range pageTabs {
-		tabCtx := AttachTab(allocCtx, t.TargetID)
-		result := make(chan string, 1)
-		go func() {
-			var state string
-			if err := chromedp.Run(tabCtx, chromedp.Evaluate(`document.visibilityState`, &state)); err != nil {
-				state = ""
-			}
-			result <- state
-		}()
-		select {
-		case state := <-result:
-			if state == "visible" {
-				return string(t.TargetID)
-			}
-		case <-time.After(probeTimeout):
-			// Busy tab: leave the probe running and try the next one. Cancelling
-			// it would make chromedp close the tab.
+	// All tabs are asked at once under one deadline, so a tab that is busy with
+	// a long script costs no more than a tab that answers straight away.
+	scores := make([]atomic.Int32, len(pages))
+	var wg sync.WaitGroup
+	for i, p := range pages {
+		wg.Go(func() { scores[i].Store(s.focusScore(p.TargetID)) })
+	}
+	done := make(chan struct{})
+	go func() { wg.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(probeTimeout):
+		// Probes are left running. Cancelling one would close its tab.
+	}
+
+	best, bestScore := pages[len(pages)-1], int32(-1)
+	for i := len(pages) - 1; i >= 0; i-- {
+		if v := scores[i].Load(); v > bestScore {
+			best, bestScore = pages[i], v
 		}
 	}
-	return ""
+	return best, nil
 }
 
-// ActiveTabID returns the TargetID of the currently visible page tab.
-// Creates one bootstrap tab to enumerate targets, then uses visibleTabID.
-func ActiveTabID(allocCtx context.Context, exclude string) string {
-	bootstrapCtx, bootstrapCancel := NewTab(allocCtx)
-	defer bootstrapCancel()
-
-	var allTargets []*target.Info
-	if err := chromedp.Run(bootstrapCtx, chromedp.ActionFunc(func(ctx context.Context) error {
-		c := chromedp.FromContext(ctx)
-		var err error
-		allTargets, err = target.GetTargets().Do(cdp.WithExecutor(ctx, c.Browser))
-		return err
-	})); err != nil {
-		return ""
+// focusScore rates a tab: 2 = has keyboard focus, 1 = selected in its window,
+// 0 = hidden or unreachable.
+func (s *Session) focusScore(id TargetID) int32 {
+	var score int32
+	if err := chromedp.Run(s.Tab(id), chromedp.Evaluate(
+		`document.hasFocus() ? 2 : (document.visibilityState === "visible" ? 1 : 0)`, &score)); err != nil {
+		return 0
 	}
-
-	bootstrapID := string(chromedp.FromContext(bootstrapCtx).Target.TargetID)
-	var pageTabs []*target.Info
-	for _, t := range allTargets {
-		if t.Type == "page" && t.Subtype == "" &&
-			string(t.TargetID) != bootstrapID && string(t.TargetID) != exclude {
-			pageTabs = append(pageTabs, t)
-		}
-	}
-	return visibleTabID(allocCtx, pageTabs)
+	return score
 }
 
-// ExistingOrNewTab attaches to the currently visible page tab.
-// Creates exactly one bootstrap tab to enumerate targets, then reuses that
-// target list for the visibilityState check - no second bootstrap is opened.
-func ExistingOrNewTab(allocCtx context.Context) (context.Context, context.CancelFunc) {
-	bootstrapCtx, bootstrapCancel := NewTab(allocCtx)
-
-	var allTargets []*target.Info
-	if err := chromedp.Run(bootstrapCtx, chromedp.ActionFunc(func(ctx context.Context) error {
-		c := chromedp.FromContext(ctx)
-		var err error
-		allTargets, err = target.GetTargets().Do(cdp.WithExecutor(ctx, c.Browser))
-		return err
-	})); err != nil {
-		return bootstrapCtx, bootstrapCancel
+// ActiveTab returns a context for the tab the user is looking at, opening one
+// when the browser has no page tab at all.
+func (s *Session) ActiveTab() (context.Context, error) {
+	t, err := s.ActiveTarget()
+	if err != nil {
+		return nil, err
 	}
-
-	bootstrapID := chromedp.FromContext(bootstrapCtx).Target.TargetID
-	bootstrapCancel()
-
-	var pageTabs []*target.Info
-	for _, t := range allTargets {
-		if t.Type == "page" && t.TargetID != bootstrapID && t.Subtype == "" {
-			pageTabs = append(pageTabs, t)
+	if t == nil {
+		ctx, _ := NewTab(s.Alloc)
+		if err := chromedp.Run(ctx); err != nil {
+			return nil, err
 		}
+		return ctx, nil
 	}
+	return s.Tab(t.TargetID), nil
+}
 
-	if len(pageTabs) == 0 {
-		ctx, _ := NewTab(allocCtx)
-		return ctx, func() {}
-	}
+// ActivateTabByID activates a tab by its target ID.
+func (s *Session) ActivateTabByID(id string) error {
+	c := chromedp.FromContext(s.brCtx)
+	return target.ActivateTarget(target.ID(id)).Do(cdp.WithExecutor(s.brCtx, c.Browser))
+}
 
-	if activeID := visibleTabID(allocCtx, pageTabs); activeID != "" {
-		return AttachTab(allocCtx, target.ID(activeID)), func() {}
-	}
-
-	// Fallback: first page tab.
-	return AttachTab(allocCtx, pageTabs[0].TargetID), func() {}
+// CloseTabByID closes a tab by its target ID.
+func (s *Session) CloseTabByID(id string) error {
+	c := chromedp.FromContext(s.brCtx)
+	return target.CloseTarget(target.ID(id)).Do(cdp.WithExecutor(s.brCtx, c.Browser))
 }
 
 // OpenTabInForeground opens the URL as the selected tab of the current window
 // by calling window.open from the visible tab, keeping OS focus on whatever
 // application is frontmost. Returns false when no visible tab exists or the
 // popup was blocked.
-func OpenTabInForeground(allocCtx context.Context, url string) bool {
-	id := ActiveTabID(allocCtx, "")
-	if id == "" {
+func (s *Session) OpenTabInForeground(url string) bool {
+	t, err := s.ActiveTarget()
+	if err != nil || t == nil {
 		return false
 	}
-	tabCtx := AttachTab(allocCtx, target.ID(id))
 	urlJSON, err := json.Marshal(url)
 	if err != nil {
 		return false
 	}
 	var opened bool
-	err = chromedp.Run(tabCtx, chromedp.Evaluate(
+	err = chromedp.Run(s.Tab(t.TargetID), chromedp.Evaluate(
 		fmt.Sprintf("!!window.open(%s)", urlJSON), &opened,
 		func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
 			return p.WithUserGesture(true)
@@ -276,14 +303,6 @@ func StartNavigate(url string) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		_, _, _, _, err := page.Navigate(url).Do(ctx)
 		return err
-	}
-}
-
-// CloseCurrentTab closes the tab from within its own context.
-func CloseCurrentTab() chromedp.ActionFunc {
-	return func(ctx context.Context) error {
-		c := chromedp.FromContext(ctx)
-		return target.CloseTarget(c.Target.TargetID).Do(cdp.WithExecutor(ctx, c.Browser))
 	}
 }
 

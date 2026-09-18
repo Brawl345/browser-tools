@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"browser-tools/browser"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/storage"
 	"github.com/chromedp/chromedp"
@@ -26,13 +25,7 @@ func Cookie(ctx context.Context, variant string, port int, args []string) {
 		os.Exit(1)
 	}
 
-	if err := browser.EnsureRunning(variant, port); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	allocCtx, _ := browser.Connect(ctx, port)
-	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
+	tabCtx := MustTab(MustSession(ctx, variant, port))
 
 	var cookies []*network.Cookie
 	if err := chromedp.Run(tabCtx, chromedp.ActionFunc(func(ctx context.Context) error {

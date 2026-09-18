@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 
-	"browser-tools/browser"
 	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/chromedp"
 	flag "github.com/spf13/pflag"
@@ -56,13 +55,7 @@ func Resize(ctx context.Context, variant string, port int, args []string) {
 		result = fmt.Sprintf("resized viewport to %dx%d", width, height)
 	}
 
-	if err := browser.EnsureRunning(variant, port); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	allocCtx, _ := browser.Connect(ctx, port)
-	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
+	tabCtx := MustTab(MustSession(ctx, variant, port))
 
 	if err := chromedp.Run(tabCtx, action); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

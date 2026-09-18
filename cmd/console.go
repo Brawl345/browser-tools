@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"browser-tools/browser"
 	cdpruntime "github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	flag "github.com/spf13/pflag"
@@ -27,13 +26,7 @@ func Console(ctx context.Context, variant string, port int, args []string) {
 		os.Exit(1)
 	}
 
-	if err := browser.EnsureRunning(variant, port); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	allocCtx, _ := browser.Connect(ctx, port)
-	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
+	tabCtx := MustTab(MustSession(ctx, variant, port))
 
 	type entry struct {
 		kind string

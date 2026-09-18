@@ -10,7 +10,6 @@ import (
 	"sync"
 	"syscall"
 
-	"browser-tools/browser"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 	flag "github.com/spf13/pflag"
@@ -64,13 +63,7 @@ func Network(ctx context.Context, variant string, port int, args []string) {
 
 	typeFilter := strings.ToLower(*resTypeFlag)
 
-	if err := browser.EnsureRunning(variant, port); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	allocCtx, _ := browser.Connect(context.Background(), port)
-	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
+	tabCtx := MustTab(MustSession(context.Background(), variant, port))
 
 	var (
 		mu       sync.Mutex

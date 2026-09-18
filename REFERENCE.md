@@ -16,7 +16,7 @@ Start Chrome with remote debugging:
 ./scripts/browser-tools start
 ```
 
-Every command starts the browser automatically if it isn't running yet. No need for explicit sleeps - commands wait for elements automatically.
+Every command starts the browser automatically if it isn't running yet.
 
 ```bash
 # Use a specific browser variant or port
@@ -27,47 +27,98 @@ BROWSER_TOOLS_BROWSER=chrome-canary ./scripts/browser-tools start
 
 ## Global Options
 
-All commands accept these flags **before** the command name:
+These flags are accepted before or after the command name, so `wait #x --timeout 30s` and `--timeout 30s wait #x` mean the same thing:
 
 | Flag | Default | Description |
 |---|---|---|
-| `--browser` | `chrome-canary` | Browser variant: `chrome-stable`, `chrome-beta`, `chrome-dev`, `chrome-canary`, `cft-stable`, `cft-beta`, `cft-dev`, `cft-canary` |
+| `--browser` | `chrome-stable` | Browser variant: `chrome-stable`, `chrome-beta`, `chrome-dev`, `chrome-canary`, `cft-stable`, `cft-beta`, `cft-dev`, `cft-canary` |
 | `--port` | `9222` | Remote debugging port |
-| `--timeout` | `10s` | Timeout for commands that wait on elements (e.g. `30s`, `500ms`, `2m`) |
+| `--timeout` | `10s` | How long to wait for elements and page loads (e.g. `30s`, `500ms`, `2m`) |
 
 ---
 
 ## Selectors
 
-Wherever a command takes a selector — as an argument or via `--selector`/`--to` — it accepts a CSS selector or an XPath expression. The selector is read as XPath when it starts with `/`, `./`, `(/` or `(./`; anything else is CSS. XPath is the way to address an element by its text:
+Wherever a command takes a selector, as an argument or via `--selector`/`--to`, it accepts three kinds, told apart by their first characters:
+
+| Form | Example | Matched against |
+|---|---|---|
+| CSS | `button#submit` | the document and every open shadow root |
+| XPath (`/`, `./`, `(/`, `(./`) | `//tr[3]//a` | the main document |
+| Text (`text=`) | `text=Sign in` | visible text, `value`, `aria-label`, `title`, `placeholder`, `alt` |
 
 ```bash
-./scripts/browser-tools mouse click "//button[normalize-space()='Sign in']"
-./scripts/browser-tools element "//a[contains(., 'Imprint')]" --attr href
-./scripts/browser-tools fill "//label[contains(.,'E-Mail')]/following::input[1]" "me@example.com"
-./scripts/browser-tools wait --absent "//div[@role='dialog']"
+./scripts/browser-tools mouse click "text=Sign in"
+./scripts/browser-tools element "text=Imprint" --attr href
+./scripts/browser-tools fill "text=E-Mail" "me@example.com"
+./scripts/browser-tools wait "//div[@role='dialog']" --absent
 ```
 
-The expression must select element nodes. `//h1/text()` and `//a/@href` end in an error that names the cause; read attributes with `element --attr` instead.
+`text=` compares case-insensitively after collapsing whitespace. An exact label beats a partial one, the innermost element carrying the text wins over its wrappers, and a visible match wins over a hidden one. It also reads `value` and `placeholder`, so it addresses `<input type="button" value="Install">`, which XPath's `normalize-space()` never matches. On a page that ships in several languages the label changes with the locale; a CSS selector holds up better there.
 
-An XPath is evaluated in the page and each matched element is turned into a CSS path, so the command then works exactly as with a hand-written CSS selector — including the multi-match note of `element` and the "capturing the first" note of `screenshot`. `wait` polls the expression instead, so it also works for elements that appear during the wait.
+A CSS selector is tried on the document first and only falls back to shadow roots when nothing matches there, so pages without web components pay nothing for it.
 
-XPath reaches into the main document only, not into shadow roots or iframes.
+An XPath must select element nodes. `//h1/text()` and `//a/@href` end in an error that names the cause; read attributes with `element --attr` instead.
+
+## Waiting and failures
+
+Every selector is polled until it reaches the wanted state or `--timeout` runs out. While it polls, it also re-checks which tab is in front, so an element that appears in a tab opened during the wait is still found. That is what makes extension and OAuth dialogs work without a detour through `tab`.
+
+Once the element exists it is scrolled into view, which lets players and lazily rendered sections finish building. If nothing matches at all, the page is walked from top to bottom to wake up content that only renders near the viewport, and scrolled back when the search fails anyway.
+
+A failed selector reports what was wrong instead of a bare timeout:
+
+```
+error: nothing matches text=Instal Now
+  tab: Script Installation | Tampermonkey — https://www.tampermonkey.net/…
+  texts on the page: "Neu installieren", "Abbrechen", "Tampermonkey®"
+  2 tabs are open — check `browser-tools tab` if this is the wrong one
+```
+
+```
+error: #overlay-button matches 1 element(s) but none is visible
+  tab: Example — https://example.com/
+  the <div> is there but display:none, box is 0x0
+  covered by div.modal-backdrop — click that instead, or pass --force
+```
+
+For a CSS selector that matches nothing, the report names the longest prefix that still matches something, so it is clear which part of the chain is wrong.
+
+## Settling
+
+`navigate` and `reload` return once the page has fired its load event and traffic has died down; pages that poll forever are not waited on beyond a short cap. The acting commands (`mouse`, `fill`, `check`, `select`, `key`, `scroll`) wait for the page to go quiet after they act. Scripting `sleep` around these commands is never needed.
 
 ## Commands
 
 ### navigate
 
-Navigate to a URL in the active tab or open in a new tab:
+Navigate to a URL in the active tab or open in a new tab. A URL without a scheme gets `https://`:
 
 ```bash
 ./scripts/browser-tools navigate https://example.com
-./scripts/browser-tools navigate https://example.com --new-tab
+./scripts/browser-tools navigate example.com --new-tab
 ```
+
+The command returns once the page has loaded. When the load event has not arrived by `--timeout` it still succeeds and says `(still loading)`, so a slow page never costs the whole command.
+
+Options:
+- `--new-tab`: Open the URL in a new tab instead of reusing the current one
+
+### reload
+
+Reload the active tab and wait for it to load, the same way `navigate` does:
+
+```bash
+./scripts/browser-tools reload
+./scripts/browser-tools reload --hard
+```
+
+Options:
+- `--hard`: Bypass the HTTP cache
 
 ### evaluate-js
 
-NOTE: Always prefer specialized commands like `html`, `mouse`, `network` or `element`/`pick-element` whenever possible.
+NOTE: Always prefer the specialised commands. When a script does something a command covers, the run prints a `hint:` line naming that command.
 
 Execute JavaScript on the current page. Accepts inline code, a path to a `.js` file, or `-` to read from STDIN.
 
@@ -113,12 +164,16 @@ Take a screenshot saved to `/tmp/screenshot-YYYYMMDD-HHMMSS.png`. Prints the pat
 ```bash
 ./scripts/browser-tools screenshot
 ./scripts/browser-tools screenshot --full-page
-./scripts/browser-tools screenshot --selector ".chart"
+./scripts/browser-tools screenshot --selector "text=Total price"
+./scripts/browser-tools screenshot --output /tmp/shot.png
 ```
+
+An element capture clips to the element's box in page coordinates, so it also works for elements taller than the viewport and for elements inside shadow roots.
 
 Options:
 - `--full-page`: Capture the entire page, not just the viewport
-- `--selector <css>`: Capture only the element matching the CSS selector (mutually exclusive with `--full-page`)
+- `--selector <sel>`: Capture only the element matching the selector (mutually exclusive with `--full-page`)
+- `--output <path>`: Custom output path (parent directories are created if needed)
 
 ### pdf
 
@@ -253,31 +308,37 @@ Returns a JSON array of the selected elements (always an array, even for a singl
 
 ### element
 
-Read the properties of a known CSS selector as JSON, without writing JavaScript. Useful for reading text/attributes and for getting an element's bounding box and visibility (e.g. before a `mouse` or `screenshot` action):
+Read everything about an element as JSON, without writing JavaScript. This is the command that replaces `getBoundingClientRect`, `getComputedStyle`, `textContent` and `querySelectorAll(...).length` scripts:
 
 ```bash
 ./scripts/browser-tools element "button#submit"
 ./scripts/browser-tools element "a.download" --attr href
+./scripts/browser-tools element ".product .title" --attr text
 ```
 
-The output always has the same shape, `{count, elements}`, regardless of how many elements match. `count` is the total number of matches and `elements` is an array holding a sample of the first few (max 3). When more than one element matches, a `note` field is added advising you to refine the selector to target a single element.
+The output always has the shape `{count, elements}`. `count` is the total number of matches.
 
-Each entry in `elements` has `tag`, `id`, `class`, `text` (trimmed, max 200 chars), `attributes` (all attributes as a map), `box` (`x`/`y`/`width`/`height`), `visible`, `html` (outerHTML, max 500 chars) and `parents` (ancestor hierarchy). Fields that are null/empty are omitted.
+On a single match the entry carries `tag`, `id`, `class`, `text` (max 200 chars), `value` (for form controls, read off the live property), `checked`, `disabled`, `attributes`, `box`, `visible`, `style`, `html` (outerHTML, max 500 chars) and `parents` (ancestor hierarchy). Empty fields are left out.
+
+On several matches it prints up to 10 short entries with `tag`, `id`, `class`, `text`, `box` and `visible`, plus a `note` when more matched than were printed.
+
+`style` holds `display`, `cursor`, `color`, `backgroundColor` and `fontSize`, plus `position`, `zIndex`, `opacity`, `visibility`, `pointerEvents` and `overflow` whenever those differ from their initial value.
 
 Options:
-- `--attr <name>`: Print only that attribute's value as plain text (exit 1 if absent). With multiple matches it prints one value per line.
+- `--attr <name>`: Print one value per line as plain text, for up to 100 matches. Besides attribute names it understands `text`, `html` and `value`; for anything else the DOM property is used when the attribute is absent, so `--attr checked` and `--attr disabled` work too.
 
-The command waits for the element to appear in the DOM (up to `--timeout`) and errors if it never does.
+The command waits for the element to appear (up to `--timeout`) and reports what is on the page if it never does.
 
 ### wait
 
-Block until an element matching a CSS selector reaches a state, then exit. Useful for synchronising on dynamic content before another action. The command waits up to `--timeout` and exits 1 if the state is never reached:
+Block until an element reaches a state, then exit. The acting commands already wait by themselves, so this covers the states they do not: something disappearing, or the page simply going quiet. Without a selector it waits for the load event and for network traffic to stop:
 
 ```bash
 ./scripts/browser-tools wait "#results"
 ./scripts/browser-tools wait "#spinner" --hidden
-./scripts/browser-tools --timeout 30s wait "#late-content" --present
+./scripts/browser-tools wait "#late-content" --present --timeout 30s
 ./scripts/browser-tools wait "#spinner" --absent
+./scripts/browser-tools wait
 ```
 
 States (mutually exclusive):
@@ -288,16 +349,22 @@ States (mutually exclusive):
 
 ### mouse
 
-Simulate mouse actions on elements using CSS selectors:
+Simulate mouse actions on elements:
 
 ```bash
-./scripts/browser-tools mouse click "button#submit"
+./scripts/browser-tools mouse click "text=Submit"
 ./scripts/browser-tools mouse dblclick ".item"
 ./scripts/browser-tools mouse hover "nav .menu-item"
 ./scripts/browser-tools mouse right-click ".context-menu-trigger"
 ./scripts/browser-tools mouse drag ".draggable" --to ".drop-zone"
 # Force JS event dispatch for hidden/non-visible elements
 ./scripts/browser-tools mouse click "#hidden-button" --force
+```
+
+Without `--force` the events are real pointer events at the element's centre, which is what a page's own handlers see. When something else is drawn over that point, the confirmation says so, because that element is the one that got the click:
+
+```
+✓ click: .poster (div.overlay lies on top and takes the event)
 ```
 
 Actions:
@@ -337,7 +404,7 @@ Check or uncheck a checkbox, or select a radio button:
 ```
 
 Options:
-- `--uncheck`: Uncheck the element (checkboxes only — cannot uncheck radio buttons)
+- `--uncheck`: Uncheck the element (checkboxes only; a radio button cannot be unchecked)
 - `--force`: Set value via JS even if element is not visible
 
 ### key
@@ -412,7 +479,7 @@ Options:
 
 ### network
 
-Capture network requests. **Blocking** — runs until Ctrl+C. Always run in a tmux pane or background agent/process - it blocks until CTRL+C.
+Capture network requests. Runs until Ctrl+C, so always start it in a tmux pane or a background process.
 
 ```bash
 ./scripts/browser-tools network
@@ -429,9 +496,9 @@ Options:
 
 ### intercept
 
-Block, redirect, or modify in-flight network requests. **Blocking** — runs until Ctrl+C. Always run in a tmux pane or background agent/process.
+Block, redirect, or modify in-flight network requests. Runs until Ctrl+C, so always start it in a tmux pane or a background process.
 
-The action is chosen by subcommand — `block`, `redirect`, `modify`, or `mock` — so only the relevant options apply per run. Every action selects which requests to intercept with `--url` (wildcards `*` and `?`, default `*`) and optionally `--type`; matching requests are paused and the action is applied, while all other traffic passes through.
+The action is chosen by subcommand (`block`, `redirect`, `modify` or `mock`), so only the relevant options apply per run. Every action selects which requests to intercept with `--url` (wildcards `*` and `?`, default `*`) and optionally `--type`; matching requests are paused and the action is applied, while all other traffic passes through.
 
 ```bash
 ./scripts/browser-tools intercept block --url "*doubleclick*"
@@ -444,15 +511,15 @@ Shared selection options (all actions):
 - `--url <pattern>`: Wildcard URL pattern to intercept (`*` = zero or more, `?` = exactly one; default `*`)
 - `--type <t>`: Filter by resource type: `all`, `xhr`, `fetch`, `document`, `script`, `stylesheet`, `image`, `font`, `media`, `websocket`, `other` (default `all`)
 
-`intercept block` — fail matching requests (`ERR_BLOCKED_BY_CLIENT`). No extra options.
+`intercept block` fails matching requests with `ERR_BLOCKED_BY_CLIENT`. No extra options.
 
-`intercept redirect <url>` — reroute matching requests to `<url>` (transparent to the page; the address bar is unchanged).
+`intercept redirect <url>` reroutes matching requests to `<url>`. The page does not notice and the address bar is unchanged.
 
-`intercept modify` — add/override or remove request headers, then continue:
+`intercept modify` adds, overrides or removes request headers, then continues:
 - `--set-header "Name: Value"`: Add/override a request header (repeatable)
 - `--remove-header <name>`: Remove a request header by name (repeatable)
 
-`intercept mock` — answer matching requests with a custom response without hitting the server:
+`intercept mock` answers matching requests with a custom response without hitting the server:
 - `--status <code>`: Response status code (default `200`)
 - `--body <string>`: Response body
 - `--file <path>`: Response body read from a file
@@ -514,10 +581,9 @@ Commands:
 - `action <id>`: Trigger the extension's toolbar action on the active tab
 - `uninstall <id>`: Remove a loaded extension
 
-After `action`, the popup opens as the active tab, so the regular commands
-(`element`, `mouse`, `fill`, `evaluate-js`, `screenshot`, …) operate on it:
+`action` presses the toolbar button, the same way a user opens the popup. Chrome closes an extension popup as soon as it loses focus, so drive its contents in a normal tab instead, where every command works on it as on any page:
 
 ```bash
-./scripts/browser-tools extension action <id>
+./scripts/browser-tools navigate "chrome-extension://<id>/popup.html"
 ./scripts/browser-tools mouse click "#my-button"
 ```

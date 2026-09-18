@@ -7,12 +7,15 @@ A coding agent skill for browser automation using Go and the Chrome DevTools Pro
 - **Start Browser**: Launch Chrome with remote debugging, selectable via `--browser` or `BROWSER_TOOLS_BROWSER` (`chrome-stable`, `chrome-beta`, `chrome-dev`, `chrome-canary`, `cft-stable`, `cft-beta`, `cft-dev`, `cft-canary`)
 - **Chrome for Testing**: Download and update Chrome for Testing builds per channel (`update-cft`)
 - **Extensions**: Load, list, uninstall, and trigger the toolbar action of unpacked extensions on Chrome for Testing
-- **Navigate**: Open URLs in the active or a new tab
+- **Navigate**: Open URLs in the active or a new tab, waiting for the page to load
+- **Reload**: Reload the active tab, optionally bypassing the cache
 - **Execute JavaScript**: Run inline code, files, or STDIN input
 - **Element Picker**: Interactive DOM element selection
-- **CSS or XPath**: Every selector argument takes a CSS selector or an XPath expression, e.g. `//button[contains(., 'Sign in')]`
-- **Element Info**: Read a selector's text, attributes, bounding box and visibility
-- **Wait for Element**: Block until an element is visible, hidden, present, or absent
+- **CSS, XPath or text**: Every selector argument takes a CSS selector, an XPath expression, or `text=Some Label`, which matches visible text, button values, ARIA labels and placeholders
+- **Shadow DOM**: CSS and text selectors reach into open shadow roots
+- **Element Info**: Read a selector's text, value, attributes, bounding box, computed style and visibility
+- **Wait for Element**: Block until an element is visible, hidden, present, or absent, or until the page goes idle
+- **Failure Reports**: A selector that does not resolve names the tab, says whether the element was missing, invisible or covered, and lists what is on the page instead
 - **Mouse Actions**: Click, double-click, hover, right-click, and drag
 - **Fill Text Fields**: Fill input and textarea elements
 - **Check Elements**: Check/uncheck checkboxes and select radio buttons
@@ -24,7 +27,7 @@ A coding agent skill for browser automation using Go and the Chrome DevTools Pro
 - **Network Monitor**: Track HTTP requests with filtering and body inspection
 - **Request Interception**: Block, redirect, and modify in-flight requests, or mock responses
 - **HTML Extraction**: Get page HTML with optional regex filtering
-- **Screenshots**: Viewport or full-page screenshots saved to `/tmp`
+- **Screenshots**: Viewport, full-page or single-element screenshots, to `/tmp` or a path of your choice
 - **PDF Export**: Save the current page as a PDF with format, margin, and header/footer options
 - **Scroll**: Scroll to an element, an X/Y position, or the top/bottom of the page
 - **Resize**: Set the viewport size
@@ -70,8 +73,8 @@ This symlinks the skill into `~/.claude/skills/browser-tools/`.
 
 ## Documentation
 
-- **[SKILL.md](SKILL.md)** — Quick reference for agents
-- **[REFERENCE.md](REFERENCE.md)** — Full command documentation
+- **[SKILL.md](SKILL.md)**: Quick reference for agents
+- **[REFERENCE.md](REFERENCE.md)**: Full command documentation
 
 ## Requirements
 

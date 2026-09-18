@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"browser-tools/browser"
+
 	flag "github.com/spf13/pflag"
 )
 
@@ -33,9 +34,13 @@ func Start(variant string, port int, args []string) {
 		os.Exit(1)
 	}
 
-	// Verify connection.
-	allocCtx, _ := browser.Connect(context.Background(), port)
-	_, _ = browser.NewTab(allocCtx)
+	s, err := browser.Open(context.Background(), variant, port)
+	if err != nil {
+		fail("%v", err)
+	}
+	if _, err := s.Targets(); err != nil {
+		fail("the browser started but does not answer on port %d: %v", port, err)
+	}
 
 	fmt.Printf("%s✓%s browser ready on port %d\n", ansiGreen, ansiReset, port)
 }

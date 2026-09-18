@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"browser-tools/browser"
+	"github.com/chromedp/cdproto/input"
 	"github.com/chromedp/chromedp"
 	flag "github.com/spf13/pflag"
 )
@@ -28,41 +28,32 @@ func Fill(ctx context.Context, variant string, port int, args []string) {
 
 	selector, text := fs.Arg(0), fs.Arg(1)
 
-	if err := browser.EnsureRunning(variant, port); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+	s := MustSession(ctx, variant, port)
+	m := Locate(ctx, s, selector, StateVisible)
+
+	settle := SettleAfter(m.Tab)
+	if err := PointerAt(m.Tab, m.X, m.Y, input.Left, 1); err != nil {
+		fail("%v", err)
 	}
-
-	allocCtx, _ := browser.Connect(ctx, port)
-	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
-	css := MustResolveSelector(tabCtx, selector)
-
-	actions := []chromedp.Action{
-		chromedp.WaitVisible(css, chromedp.ByQuery),
-		chromedp.Click(css, chromedp.ByQuery),
+	if err := Focus(m.Tab); err != nil {
+		fail("%v", err)
 	}
 	if *clear {
-		actions = append(actions, chromedp.Evaluate(
-			fmt.Sprintf(`(function(){
-				var el = document.querySelector(%s);
-				if (!el) return;
-				el.select();
-				el.value = '';
-				el.dispatchEvent(new Event('input', {bubbles:true}));
-				el.dispatchEvent(new Event('change', {bubbles:true}));
-			}())`, jsonStr(css)),
-			nil,
-		))
+		if err := OnHit(m.Tab, `if ("value" in el) {
+				el.value = "";
+			} else if (el.isContentEditable) {
+				el.textContent = "";
+			}
+			el.dispatchEvent(new Event('input',  {bubbles: true}));
+			el.dispatchEvent(new Event('change', {bubbles: true}));
+			return true;`, nil); err != nil {
+			fail("%v", err)
+		}
 	}
-	actions = append(actions,
-		chromedp.SendKeys(css, text, chromedp.ByQuery),
-	)
-
-	if err := chromedp.Run(tabCtx, actions...); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		fmt.Fprintf(os.Stderr, "hint: use --timeout to increase the wait time\n")
-		os.Exit(1)
+	if err := RunBounded(m.Tab, chromedp.KeyEvent(text)); err != nil {
+		fail("%v", err)
 	}
 
-	fmt.Printf("%s✓%s filled %s\n", ansiGreen, ansiReset, selector)
+	settle()
+	fmt.Printf("%s✓%s filled %s%s\n", ansiGreen, ansiReset, selector, matchNote(m))
 }

@@ -13,9 +13,9 @@ import (
 
 func Tab(ctx context.Context, variant string, port int, args []string) {
 	fs := flag.NewFlagSet("tab", flag.ExitOnError)
-	activateIdx := fs.Int("activate", 0, "activate tab by index")
-	closeIdx := fs.Int("close", 0, "close tab by index")
-	refreshIdx := fs.Int("refresh", 0, "refresh tab by index")
+	activateIdx := fs.Int("activate", 0, "activate the tab with this index")
+	closeIdx := fs.Int("close", 0, "close the tab with this index")
+	refreshIdx := fs.Int("refresh", 0, "reload the tab with this index")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: browser-tools tab [--activate <n>] [--close <n>] [--refresh <n>]")
 		fmt.Fprintln(os.Stderr)
@@ -25,62 +25,29 @@ func Tab(ctx context.Context, variant string, port int, args []string) {
 		os.Exit(1)
 	}
 
-	if err := browser.EnsureRunning(variant, port); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+	s := MustSession(ctx, variant, port)
+	tabs, err := s.Tabs()
+	if err != nil {
+		fail("cannot list tabs: %v", err)
 	}
 
-	allocCtx, _ := browser.Connect(ctx, port)
-
-	// One bootstrap tab for the entire operation; its ID is excluded from the
-	// tab list so it never appears in the output or shifts indices.
-	bootstrapCtx, bootstrapCancel := browser.NewTab(allocCtx)
-	defer bootstrapCancel()
-
-	var tabs []browser.TabInfo
-	if err := chromedp.Run(bootstrapCtx, chromedp.ActionFunc(func(ctx context.Context) error {
-		c := chromedp.FromContext(ctx)
-		var err error
-		tabs, err = browser.GetPageTabs(ctx, string(c.Target.TargetID))
-		return err
-	})); err != nil {
-		fmt.Fprintf(os.Stderr, "error listing tabs: %v\n", err)
-		os.Exit(1)
-	}
-
-	if *closeIdx > 0 {
-		tab, ok := resolveTab(tabs, *closeIdx)
-		if !ok {
-			os.Exit(1)
-		}
-		if err := chromedp.Run(bootstrapCtx, browser.CloseTabByID(tab.ID)); err != nil {
-			fmt.Fprintf(os.Stderr, "error closing tab: %v\n", err)
-			os.Exit(1)
+	switch {
+	case *closeIdx > 0:
+		t := mustTabAt(tabs, *closeIdx)
+		if err := s.CloseTabByID(t.ID); err != nil {
+			fail("cannot close the tab: %v", err)
 		}
 		return
-	}
-
-	if *refreshIdx > 0 {
-		tab, ok := resolveTab(tabs, *refreshIdx)
-		if !ok {
-			os.Exit(1)
-		}
-		tabCtx := browser.AttachTab(allocCtx, browser.TargetID(tab.ID))
-		if err := chromedp.Run(tabCtx, chromedp.Reload()); err != nil {
-			fmt.Fprintf(os.Stderr, "error refreshing tab: %v\n", err)
-			os.Exit(1)
+	case *refreshIdx > 0:
+		t := mustTabAt(tabs, *refreshIdx)
+		if err := chromedp.Run(s.Tab(browser.TargetID(t.ID)), chromedp.Reload()); err != nil {
+			fail("cannot reload the tab: %v", err)
 		}
 		return
-	}
-
-	if *activateIdx > 0 {
-		tab, ok := resolveTab(tabs, *activateIdx)
-		if !ok {
-			os.Exit(1)
-		}
-		if err := chromedp.Run(bootstrapCtx, browser.ActivateTabByID(tab.ID)); err != nil {
-			fmt.Fprintf(os.Stderr, "error activating tab: %v\n", err)
-			os.Exit(1)
+	case *activateIdx > 0:
+		t := mustTabAt(tabs, *activateIdx)
+		if err := s.ActivateTabByID(t.ID); err != nil {
+			fail("cannot activate the tab: %v", err)
 		}
 		return
 	}
@@ -90,7 +57,10 @@ func Tab(ctx context.Context, variant string, port int, args []string) {
 		return
 	}
 
-	activeID := browser.ActiveTabID(allocCtx, string(chromedp.FromContext(bootstrapCtx).Target.TargetID))
+	var activeID string
+	if t, err := s.ActiveTarget(); err == nil && t != nil {
+		activeID = string(t.TargetID)
+	}
 	for i, t := range tabs {
 		marker := "  "
 		if t.ID == activeID {
@@ -100,13 +70,12 @@ func Tab(ctx context.Context, variant string, port int, args []string) {
 	}
 }
 
-func resolveTab(tabs []browser.TabInfo, idx int) (browser.TabInfo, bool) {
+func mustTabAt(tabs []browser.TabInfo, idx int) browser.TabInfo {
 	i := idx - 1
 	if i < 0 || i >= len(tabs) {
-		fmt.Fprintf(os.Stderr, "no tab at index %d (have %d tab(s))\n", idx, len(tabs))
-		return browser.TabInfo{}, false
+		fail("there is no tab %d (%d tab(s) open)", idx, len(tabs))
 	}
-	return tabs[i], true
+	return tabs[i]
 }
 
 func truncate(s string, n int) string {

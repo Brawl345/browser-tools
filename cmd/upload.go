@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"browser-tools/browser"
 	"github.com/chromedp/chromedp"
 	flag "github.com/spf13/pflag"
 )
@@ -44,22 +43,14 @@ func Upload(ctx context.Context, variant string, port int, args []string) {
 		files = append(files, abs)
 	}
 
-	if err := browser.EnsureRunning(variant, port); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+	s := MustSession(ctx, variant, port)
+	m := Locate(ctx, s, sel, StatePresent)
+	if m.Path == "" {
+		fail("%s sits inside a shadow root — file inputs must be in the main document", sel)
 	}
 
-	allocCtx, _ := browser.Connect(ctx, port)
-	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
-
-	css := MustResolveSelector(tabCtx, sel)
-
-	if err := chromedp.Run(tabCtx,
-		chromedp.WaitReady(css, chromedp.ByQuery),
-		chromedp.SetUploadFiles(css, files, chromedp.ByQuery),
-	); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+	if err := RunBounded(m.Tab, chromedp.SetUploadFiles(m.Path, files, chromedp.ByQuery)); err != nil {
+		fail("%v", err)
 	}
 
 	for _, f := range files {

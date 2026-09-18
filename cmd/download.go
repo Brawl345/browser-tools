@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"browser-tools/browser"
 	cdpbrowser "github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/cdproto/cdp"
+	"github.com/chromedp/cdproto/input"
 	"github.com/chromedp/chromedp"
 	flag "github.com/spf13/pflag"
 )
@@ -31,13 +31,9 @@ func Download(ctx context.Context, variant string, port int, args []string) {
 
 	sel := fs.Arg(0)
 
-	if err := browser.EnsureRunning(variant, port); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	allocCtx, _ := browser.Connect(ctx, port)
-	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
+	s := MustSession(ctx, variant, port)
+	m := Locate(ctx, s, sel, StateVisible)
+	tabCtx := m.Tab
 
 	// Use a temp dir; files are named by GUID (allowAndName behavior).
 	tmpDir, err := os.MkdirTemp("", "browser-tools-dl-*")
@@ -92,9 +88,8 @@ func Download(ctx context.Context, variant string, port int, args []string) {
 	})
 
 	// Click the element to trigger the download.
-	if err := chromedp.Run(tabCtx, chromedp.Click(MustResolveSelector(tabCtx, sel), chromedp.ByQuery)); err != nil {
-		fmt.Fprintf(os.Stderr, "error clicking element: %v\n", err)
-		os.Exit(1)
+	if err := PointerAt(tabCtx, m.X, m.Y, input.Left, 1); err != nil {
+		fail("%v", err)
 	}
 
 	// Wait for download to begin.

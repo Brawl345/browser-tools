@@ -7,9 +7,8 @@ import (
 	"regexp"
 	"strings"
 
-	"browser-tools/browser"
-	flag "github.com/spf13/pflag"
 	"github.com/chromedp/chromedp"
+	flag "github.com/spf13/pflag"
 )
 
 func HTML(ctx context.Context, variant string, port int, args []string) {
@@ -25,16 +24,10 @@ func HTML(ctx context.Context, variant string, port int, args []string) {
 		os.Exit(1)
 	}
 
-	if err := browser.EnsureRunning(variant, port); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	allocCtx, _ := browser.Connect(ctx, port)
-	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
+	tabCtx := MustTab(MustSession(ctx, variant, port))
 
 	var html string
-	if err := chromedp.Run(tabCtx, chromedp.OuterHTML("html", &html, chromedp.ByQuery)); err != nil {
+	if err := RunBounded(tabCtx, chromedp.OuterHTML("html", &html, chromedp.ByQuery)); err != nil {
 		fmt.Fprintf(os.Stderr, "error getting HTML: %v\n", err)
 		os.Exit(1)
 	}

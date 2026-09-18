@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
-	"browser-tools/browser"
+	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 	flag "github.com/spf13/pflag"
 )
@@ -14,9 +15,10 @@ import (
 func Screenshot(ctx context.Context, variant string, port int, args []string) {
 	fs := flag.NewFlagSet("screenshot", flag.ExitOnError)
 	fullPage := fs.Bool("full-page", false, "capture the entire page, not just the viewport")
-	selector := fs.String("selector", "", "capture only the element matching this CSS selector or XPath")
+	selector := fs.String("selector", "", "capture only the element matching this selector")
+	output := fs.String("output", "", "write the PNG here instead of /tmp")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: browser-tools screenshot [--full-page] [--selector <css>]")
+		fmt.Fprintln(os.Stderr, "Usage: browser-tools screenshot [--full-page] [--selector <sel>] [--output <path>]")
 		fmt.Fprintln(os.Stderr)
 		fs.PrintDefaults()
 	}
@@ -24,52 +26,55 @@ func Screenshot(ctx context.Context, variant string, port int, args []string) {
 		os.Exit(1)
 	}
 	if *fullPage && *selector != "" {
-		fmt.Fprintln(os.Stderr, "error: --full-page and --selector are mutually exclusive")
-		os.Exit(1)
+		fail("--full-page and --selector are mutually exclusive")
 	}
 
-	if err := browser.EnsureRunning(variant, port); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	allocCtx, _ := browser.Connect(ctx, port)
-	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
+	s := MustSession(ctx, variant, port)
 
 	var buf []byte
+	var tabCtx context.Context
 	var action chromedp.Action
+
 	switch {
 	case *selector != "":
-		css := MustResolveSelector(tabCtx, *selector)
-		var count int
-		countScript := fmt.Sprintf(`document.querySelectorAll(%s).length`, jsonStr(css))
-		action = chromedp.Tasks{
-			chromedp.WaitVisible(css, chromedp.ByQuery),
-			chromedp.Evaluate(countScript, &count),
-			chromedp.ActionFunc(func(context.Context) error {
-				if count > 1 {
-					fmt.Fprintf(os.Stderr, "note: %d elements match %q; capturing the first. Refine the selector to target a single element.\n", count, *selector)
-				}
-				return nil
-			}),
-			chromedp.Screenshot(css, &buf, chromedp.NodeVisible, chromedp.ByQuery),
+		m := Locate(ctx, s, *selector, StateVisible)
+		tabCtx = m.Tab
+		var clip page.Viewport
+		if err := OnHit(tabCtx, `const r = el.getBoundingClientRect();
+			return { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: r.height, scale: 1 };`, &clip); err != nil {
+			fail("%v", err)
 		}
+		if clip.Width < 1 || clip.Height < 1 {
+			fail("%s has a %gx%g box — nothing to capture", *selector, clip.Width, clip.Height)
+		}
+		action = chromedp.ActionFunc(func(c context.Context) error {
+			var err error
+			buf, err = page.CaptureScreenshot().WithClip(&clip).WithCaptureBeyondViewport(true).Do(c)
+			return err
+		})
 	case *fullPage:
+		tabCtx = MustTab(s)
 		action = chromedp.FullScreenshot(&buf, 100)
 	default:
+		tabCtx = MustTab(s)
 		action = chromedp.CaptureScreenshot(&buf)
 	}
 
 	if err := chromedp.Run(tabCtx, action); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+		fail("%v", err)
 	}
 
-	ts := time.Now().Format("20060102-150405")
-	path := fmt.Sprintf("/tmp/screenshot-%s.png", ts)
+	path := *output
+	if path == "" {
+		path = fmt.Sprintf("/tmp/screenshot-%s.png", time.Now().Format("20060102-150405"))
+	}
+	if dir := filepath.Dir(path); dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			fail("cannot create %s: %v", dir, err)
+		}
+	}
 	if err := os.WriteFile(path, buf, 0o644); err != nil {
-		fmt.Fprintf(os.Stderr, "error saving screenshot: %v\n", err)
-		os.Exit(1)
+		fail("cannot save the screenshot: %v", err)
 	}
 
 	fmt.Println(path)

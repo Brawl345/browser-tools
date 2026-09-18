@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"os"
 
-	"browser-tools/browser"
 	"github.com/chromedp/chromedp"
 	flag "github.com/spf13/pflag"
 )
 
 func Scroll(ctx context.Context, variant string, port int, args []string) {
 	fs := flag.NewFlagSet("scroll", flag.ExitOnError)
-	x := fs.Int("x", -1, "scroll to absolute X position (pixels)")
-	y := fs.Int("y", -1, "scroll to absolute Y position (pixels)")
+	x := fs.Int("x", -1, "scroll to this absolute X position (pixels)")
+	y := fs.Int("y", -1, "scroll to this absolute Y position (pixels)")
 	top := fs.Bool("top", false, "scroll to the top of the page")
 	bottom := fs.Bool("bottom", false, "scroll to the bottom of the page")
 	fs.Usage = func() {
@@ -29,59 +28,48 @@ func Scroll(ctx context.Context, variant string, port int, args []string) {
 	hasPos := *x >= 0 || *y >= 0
 
 	modes := 0
-	if selector != "" {
-		modes++
-	}
-	if hasPos {
-		modes++
-	}
-	if *top {
-		modes++
-	}
-	if *bottom {
-		modes++
+	for _, m := range []bool{selector != "", hasPos, *top, *bottom} {
+		if m {
+			modes++
+		}
 	}
 	if modes == 0 {
 		fs.Usage()
 		os.Exit(1)
 	}
 	if modes > 1 {
-		fmt.Fprintln(os.Stderr, "error: choose only one of <selector>, --x/--y, --top, --bottom")
-		os.Exit(1)
+		fail("choose only one of <selector>, --x/--y, --top, --bottom")
 	}
 
-	if err := browser.EnsureRunning(variant, port); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+	s := MustSession(ctx, variant, port)
+
+	// Locate already scrolls the element into view.
+	if selector != "" {
+		m := Locate(ctx, s, selector, StatePresent)
+		SettleAfter(m.Tab)()
+		fmt.Printf("%s✓%s scrolled to %s%s\n", ansiGreen, ansiReset, selector, matchNote(m))
+		return
 	}
 
-	allocCtx, _ := browser.Connect(ctx, port)
-	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
-
-	var action chromedp.Action
-	var target string
+	tabCtx := MustTab(s)
+	var script, target string
 	switch {
-	case selector != "":
-		action = chromedp.ScrollIntoView(MustResolveSelector(tabCtx, selector), chromedp.ByQuery)
-		target = selector
 	case *top:
-		action = chromedp.Evaluate(`window.scrollTo({left: 0, top: 0, behavior: "instant"})`, nil)
-		target = "top"
+		script, target = `window.scrollTo({left: 0, top: 0, behavior: "instant"})`, "top"
 	case *bottom:
-		action = chromedp.Evaluate(`window.scrollTo({left: 0, top: document.documentElement.scrollHeight, behavior: "instant"})`, nil)
-		target = "bottom"
+		script, target = `window.scrollTo({left: 0, top: document.documentElement.scrollHeight, behavior: "instant"})`, "bottom"
 	default:
-		script := fmt.Sprintf(`window.scrollTo({left: %s, top: %s, behavior: "instant"})`,
+		script = fmt.Sprintf(`window.scrollTo({left: %s, top: %s, behavior: "instant"})`,
 			axisExpr(*x, "window.scrollX"), axisExpr(*y, "window.scrollY"))
-		action = chromedp.Evaluate(script, nil)
 		target = fmt.Sprintf("x=%d y=%d", max(*x, 0), max(*y, 0))
 	}
 
-	if err := chromedp.Run(tabCtx, action); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+	settle := SettleAfter(tabCtx)
+	if err := RunBounded(tabCtx, chromedp.Evaluate(script, nil)); err != nil {
+		fail("%v", err)
 	}
 
+	settle()
 	fmt.Printf("%s✓%s scrolled to %s\n", ansiGreen, ansiReset, target)
 }
 

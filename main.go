@@ -4,17 +4,23 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"browser-tools/cmd"
+
 	flag "github.com/spf13/pflag"
 )
 
 var (
 	browserVariant = flag.String("browser", browserDefault(), "browser variant: chrome-stable, chrome-beta, chrome-dev, chrome-canary, cft-stable, cft-beta, cft-dev, cft-canary")
 	port           = flag.Int("port", 9222, "remote debugging port")
-	timeout        = flag.Duration("timeout", 10*time.Second, "timeout for commands that wait on elements")
+	timeout        = flag.Duration("timeout", 10*time.Second, "how long commands wait for elements and page loads")
 )
+
+// globalFlags may be written after the command name as well, so
+// `wait #x --timeout 30s` works the same as `--timeout 30s wait #x`.
+var globalFlags = map[string]bool{"browser": true, "port": true, "timeout": true}
 
 // longRunning lists the commands that stream until the user stops them, so the
 // watchdog stays disarmed for them.
@@ -29,11 +35,13 @@ var longRunning = map[string]bool{
 
 // armWatchdog ends the process once the command budget is spent. The timeout is
 // enforced here instead of through a context deadline: chromedp closes the tab a
-// cancelled context is attached to, which would take the user's tab with it. The
-// grace period lets a command report its own, more precise error first.
-func armWatchdog(d time.Duration) {
+// cancelled context is attached to, which would take the user's tab with it.
+// Commands stop a little earlier and report a precise error themselves, so this
+// only fires when the browser itself stopped answering.
+func armWatchdog(d time.Duration, command string) {
 	time.AfterFunc(d+500*time.Millisecond, func() {
-		fmt.Fprintf(os.Stderr, "error: timed out after %s\n", d)
+		fmt.Fprintf(os.Stderr, "error: `%s` got no answer from the browser within %s\n", command, d)
+		fmt.Fprintf(os.Stderr, "  raise --timeout, or check `browser-tools tab` to see whether the browser is stuck\n")
 		os.Exit(1)
 	})
 }
@@ -45,10 +53,43 @@ func browserDefault() string {
 	return "chrome-stable"
 }
 
+// hoistGlobalFlags moves global flags that appear after the command name to the
+// front, so their position never matters.
+func hoistGlobalFlags(argv []string) []string {
+	var head, tail []string
+	seenCommand := false
+	for i := 0; i < len(argv); i++ {
+		a := argv[i]
+		name, hasValue := strings.CutPrefix(a, "--")
+		if !hasValue {
+			if !strings.HasPrefix(a, "-") {
+				seenCommand = true
+			}
+			tail = append(tail, a)
+			continue
+		}
+		key, inline, joined := strings.Cut(name, "=")
+		if !seenCommand || !globalFlags[key] {
+			tail = append(tail, a)
+			continue
+		}
+		if joined {
+			head = append(head, "--"+key+"="+inline)
+			continue
+		}
+		if i+1 < len(argv) {
+			head = append(head, "--"+key, argv[i+1])
+			i++
+		}
+	}
+	return append(head, tail...)
+}
+
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage: browser-tools [options] <command> [args]\n\n")
-	fmt.Fprintf(os.Stderr, "Options:\n")
+	fmt.Fprintf(os.Stderr, "Options (accepted before or after the command):\n")
 	flag.PrintDefaults()
+	fmt.Fprintf(os.Stderr, "\nSelectors: a CSS selector, an XPath (starts with /), or text=Some Label\n")
 	fmt.Fprintf(os.Stderr, "\nCommands:\n")
 	cmds := [][2]string{
 		{"check [--uncheck] [--force] <sel>", "Check/uncheck a checkbox or radio button"},
@@ -57,7 +98,7 @@ func usage() {
 		{"cookie [--all]", "List cookies for the current tab"},
 		{"dom-storage [--local|--session]", "Show localStorage / sessionStorage"},
 		{"download [--output <path>] <sel>", "Download a file by clicking an element"},
-		{"element [--attr <name>] <sel>", "Read an element's text, attributes and box as JSON"},
+		{"element [--attr <name>] <sel>", "Read text, value, attributes, box and style as JSON"},
 		{"evaluate-js [JS]", "Evaluate JavaScript in the current tab"},
 		{"extension <command> [args]", "Load/list/uninstall/trigger extensions (Chrome for Testing)"},
 		{"fill [--clear] <sel> <text>", "Fill an input field"},
@@ -65,12 +106,13 @@ func usage() {
 		{"intercept <action> [options]", "Block/redirect/modify/mock network requests"},
 		{"key [--selector <sel>] <key>", "Simulate a key press"},
 		{"mouse <action> [options] <sel>", "Simulate mouse actions (click/dblclick/hover/…)"},
-		{"navigate [--new-tab] <url>", "Open a URL in a browser tab"},
+		{"navigate [--new-tab] <url>", "Open a URL and wait for it to load"},
 		{"network [options]", "Capture network requests"},
 		{"pdf [options]", "Save the current page as a PDF"},
 		{"pick-element <message>", "Interactively pick a DOM element"},
+		{"reload [--hard]", "Reload the current tab"},
 		{"resize [--reset] <w> <h>", "Set the viewport size"},
-		{"screenshot [--full-page]", "Take a screenshot to /tmp"},
+		{"screenshot [--selector <sel>]", "Take a screenshot"},
 		{"scroll [<sel>|--x|--y|--top|--bottom]", "Scroll to an element or X/Y position"},
 		{"select [options] <sel> <val>", "Select a dropdown option"},
 		{"start", "Start the browser with remote debugging"},
@@ -78,17 +120,17 @@ func usage() {
 		{"update [--check] [--force]", "Update browser-tools to the latest release"},
 		{"update-cft [--channel <c>]", "Download or update a Chrome for Testing build"},
 		{"upload <sel> <file> [file2 …]", "Set files on a file input"},
-		{"wait [--hidden|--present|--absent] <sel>", "Wait for an element to reach a state"},
+		{"wait [--hidden|--present|--absent] [sel]", "Wait for an element, or for the page to go idle"},
 	}
 	for _, c := range cmds {
-		fmt.Fprintf(os.Stderr, "  %-34s %s\n", c[0], c[1])
+		fmt.Fprintf(os.Stderr, "  %-38s %s\n", c[0], c[1])
 	}
 }
 
 func main() {
 	flag.Usage = usage
 	flag.SetInterspersed(false)
-	flag.Parse()
+	flag.CommandLine.Parse(hoistGlobalFlags(os.Args[1:]))
 
 	if flag.NArg() < 1 {
 		usage()
@@ -99,11 +141,12 @@ func main() {
 	defer cancel()
 	bgCtx := context.Background()
 
-	if !longRunning[flag.Arg(0)] {
-		armWatchdog(*timeout)
+	command := flag.Arg(0)
+	if !longRunning[command] {
+		armWatchdog(*timeout, command)
 	}
 
-	switch flag.Arg(0) {
+	switch command {
 	case "check":
 		cmd.Check(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "clear":
@@ -140,6 +183,8 @@ func main() {
 		cmd.PDF(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "pick-element":
 		cmd.PickElement(bgCtx, *browserVariant, *port, flag.Args()[1:])
+	case "reload":
+		cmd.Reload(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "resize":
 		cmd.Resize(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "screenshot":
@@ -161,7 +206,7 @@ func main() {
 	case "update-cft":
 		cmd.CfT(bgCtx, flag.Args()[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", flag.Arg(0))
+		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", command)
 		usage()
 		os.Exit(1)
 	}

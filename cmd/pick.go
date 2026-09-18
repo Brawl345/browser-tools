@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"browser-tools/browser"
+
 	chromedpruntime "github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	flag "github.com/spf13/pflag"
@@ -71,12 +72,12 @@ const pickScript = `
 					if (!selectedElements.has(el)) {
 						selectedElements.add(el);
 						el.style.outline = "3px solid #10b981";
-						selections.push(buildElementInfo(el));
+						selections.push(buildElementInfo(el, true));
 						updateBanner();
 					}
 				} else {
 					cleanup();
-					const info = buildElementInfo(el);
+					const info = buildElementInfo(el, true);
 					resolve(selections.length > 0 ? selections : info);
 				}
 			};
@@ -122,14 +123,7 @@ func PickElement(ctx context.Context, variant string, port int, args []string) {
 
 	message := strings.Join(fs.Args(), " ")
 
-	if err := browser.EnsureRunning(variant, port); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	allocCtx, _ := browser.Connect(context.Background(), port)
-
-	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
+	tabCtx := MustTab(MustSession(context.Background(), variant, port))
 
 	if err := chromedp.Run(tabCtx, browser.ActivateCurrentTab()); err != nil {
 		fmt.Fprintf(os.Stderr, "error bringing tab to front: %v\n", err)
@@ -155,14 +149,10 @@ func PickElement(ctx context.Context, variant string, port int, args []string) {
 		return
 	}
 
-	var single elementInfo
-	if err := json.Unmarshal(raw, &single); err == nil && single.Tag != "" {
-		printJSON([]elementInfo{single})
-		return
-	}
-
-	var multi []elementInfo
+	var multi []json.RawMessage
 	if err := json.Unmarshal(raw, &multi); err == nil {
 		printJSON(multi)
+		return
 	}
+	printJSON([]json.RawMessage{json.RawMessage(raw)})
 }

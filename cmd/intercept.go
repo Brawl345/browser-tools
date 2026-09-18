@@ -10,7 +10,6 @@ import (
 	"sync"
 	"syscall"
 
-	"browser-tools/browser"
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
@@ -166,13 +165,7 @@ func interceptMock(variant string, port int, args []string) {
 // runIntercept drives the shared interception loop: it pauses every request matching the
 // pattern, logs it, and applies the action produced by build. Blocks until SIGINT.
 func runIntercept(variant string, port int, urlPattern, resTypeFlag string, build actionFor) {
-	if err := browser.EnsureRunning(variant, port); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	allocCtx, _ := browser.Connect(context.Background(), port)
-	tabCtx, _ := browser.ExistingOrNewTab(allocCtx)
+	tabCtx := MustTab(MustSession(context.Background(), variant, port))
 
 	pattern := &fetch.RequestPattern{URLPattern: urlPattern}
 	if tf := strings.ToLower(resTypeFlag); tf != "all" {
