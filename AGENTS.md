@@ -12,6 +12,8 @@ Every command has to come back with a result inside `--timeout`. Waiting for an 
 
 `cmd/locate.go` is the single selector engine. Every command that takes a selector goes through `Locate`, which polls one in-page script handling CSS, XPath and `text=`, re-resolves the active tab while it waits, and renders the failure report. Commands act on what it returns: `Match.X/Y` for pointer events, `window.__btHit` for JS, `Match.Path` where chromedp needs a CSS selector.
 
+`browser.KeepFront` wraps everything that makes Chrome raise its window (launch, `Target.activateTarget`) and re-activates the previously frontmost app on macOS. `Target.createTarget` and `Page.navigate` never raise the window.
+
 `cmd/settle.go` holds the waiting that follows an action: `SettleAfter` around anything that changes the page, `WaitLoaded` after a navigation.
 
 ## Build

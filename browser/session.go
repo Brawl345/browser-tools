@@ -2,7 +2,6 @@ package browser
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -14,7 +13,6 @@ import (
 
 	cdp "github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/page"
-	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 )
@@ -62,19 +60,27 @@ func Launch(variant string, port int) error {
 	detachProcess(c)
 
 	fmt.Fprintf(os.Stderr, "Starting %s on port %d...\n", cfg.ProcessName, port)
-	if err := c.Start(); err != nil {
-		return fmt.Errorf("failed to start browser: %w", err)
-	}
-
-	deadline := time.Now().Add(15 * time.Second)
-	for time.Now().Before(deadline) {
-		time.Sleep(500 * time.Millisecond)
-		if IsRunning(port) {
-			return nil
+	return KeepFront(launchRaiseWindow, func() error {
+		if err := c.Start(); err != nil {
+			return fmt.Errorf("failed to start browser: %w", err)
 		}
-	}
-	return fmt.Errorf("browser did not become ready within 15 seconds")
+		deadline := time.Now().Add(15 * time.Second)
+		for time.Now().Before(deadline) {
+			time.Sleep(500 * time.Millisecond)
+			if IsRunning(port) {
+				return nil
+			}
+		}
+		return fmt.Errorf("browser did not become ready within 15 seconds")
+	})
 }
+
+// launchRaiseWindow and activateRaiseWindow bound how long the browser may take
+// to raise its window after a launch or a tab activation.
+const (
+	launchRaiseWindow   = 1500 * time.Millisecond
+	activateRaiseWindow = 500 * time.Millisecond
+)
 
 func EnsureRunning(variant string, port int) error {
 	if IsRunning(port) {
@@ -263,39 +269,19 @@ func (s *Session) ActiveTab() (context.Context, error) {
 	return s.Tab(t.TargetID), nil
 }
 
-// ActivateTabByID activates a tab by its target ID.
+// ActivateTabByID selects a tab by its target ID, leaving the frontmost app in
+// front.
 func (s *Session) ActivateTabByID(id string) error {
 	c := chromedp.FromContext(s.brCtx)
-	return target.ActivateTarget(target.ID(id)).Do(cdp.WithExecutor(s.brCtx, c.Browser))
+	return KeepFront(activateRaiseWindow, func() error {
+		return target.ActivateTarget(target.ID(id)).Do(cdp.WithExecutor(s.brCtx, c.Browser))
+	})
 }
 
 // CloseTabByID closes a tab by its target ID.
 func (s *Session) CloseTabByID(id string) error {
 	c := chromedp.FromContext(s.brCtx)
 	return target.CloseTarget(target.ID(id)).Do(cdp.WithExecutor(s.brCtx, c.Browser))
-}
-
-// OpenTabInForeground opens the URL as the selected tab of the current window
-// by calling window.open from the visible tab, keeping OS focus on whatever
-// application is frontmost. Returns false when no visible tab exists or the
-// popup was blocked.
-func (s *Session) OpenTabInForeground(url string) bool {
-	t, err := s.ActiveTarget()
-	if err != nil || t == nil {
-		return false
-	}
-	urlJSON, err := json.Marshal(url)
-	if err != nil {
-		return false
-	}
-	var opened bool
-	err = chromedp.Run(s.Tab(t.TargetID), chromedp.Evaluate(
-		fmt.Sprintf("!!window.open(%s)", urlJSON), &opened,
-		func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
-			return p.WithUserGesture(true)
-		},
-	))
-	return err == nil && opened
 }
 
 // StartNavigate fires a navigation without waiting for the page to fully load.
@@ -306,10 +292,18 @@ func StartNavigate(url string) chromedp.ActionFunc {
 	}
 }
 
-// ActivateCurrentTab brings the current tab into focus.
+// ActivateCurrentTab brings the current tab and its window into focus.
 func ActivateCurrentTab() chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		c := chromedp.FromContext(ctx)
 		return target.ActivateTarget(c.Target.TargetID).Do(cdp.WithExecutor(ctx, c.Browser))
+	}
+}
+
+// SelectCurrentTab selects the current tab in its window, leaving the frontmost
+// app in front.
+func SelectCurrentTab() chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		return KeepFront(activateRaiseWindow, func() error { return ActivateCurrentTab().Do(ctx) })
 	}
 }

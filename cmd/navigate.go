@@ -40,12 +40,8 @@ func Navigate(ctx context.Context, variant string, port int, args []string) {
 
 	var tabCtx context.Context
 	if *newTab {
-		if s.OpenTabInForeground(rawURL) {
-			reportNavigation(ctx, s, rawURL)
-			return
-		}
 		tabCtx, _ = browser.NewTab(s.Alloc)
-		if err := chromedp.Run(tabCtx, browser.ActivateCurrentTab()); err != nil {
+		if err := RunBounded(tabCtx, browser.SelectCurrentTab()); err != nil {
 			fail("%v", err)
 		}
 	} else {
@@ -57,18 +53,6 @@ func Navigate(ctx context.Context, variant string, port int, args []string) {
 		fail("%v", err)
 	}
 	report("Navigated to", rawURL, WaitLoaded(ctx, tabCtx, w))
-}
-
-// reportNavigation waits on whichever tab ends up in front after a new-tab
-// navigation, since window.open puts the page in a target this process does not
-// hold yet.
-func reportNavigation(ctx context.Context, s *browser.Session, url string) {
-	tabCtx, err := s.ActiveTab()
-	if err != nil || tabCtx == nil {
-		fmt.Printf("Navigated to %s\n", url)
-		return
-	}
-	report("Navigated to", url, WaitLoaded(ctx, tabCtx, watch(tabCtx)))
 }
 
 func report(verb, url string, loaded bool) {
