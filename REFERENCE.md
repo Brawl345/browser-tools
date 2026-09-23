@@ -34,10 +34,10 @@ BROWSER_TOOLS_BROWSER=chrome-canary ./scripts/browser-tools start
 
 ```bash
 ./scripts/browser-tools start --fake-media
-./scripts/browser-tools start --arg=--lang=de --arg=--force-dark-mode
+./scripts/browser-tools start --arg=--force-dark-mode
 ```
 
-`getUserMedia` needs a secure context: HTTPS or `http://localhost`.
+For changing the UI language use `--arg=--lang=de` on Linux and Windows. On macOS, use `AppleLanguages` passed as two arguments: `--arg=-AppleLanguages --arg='(de)'`.
 
 ## Global Options
 

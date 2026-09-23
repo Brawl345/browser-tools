@@ -153,7 +153,8 @@ Commands start the browser on their own. `start` does it explicitly and can pass
 
 ```bash
 ./scripts/browser-tools start --fake-media            # fake camera + mic, permission granted without prompt
-./scripts/browser-tools start --arg=--lang=de         # any Chrome flag, repeatable
+./scripts/browser-tools start --arg=--force-dark-mode # any Chrome flag, repeatable
+./scripts/browser-tools start --arg=-AppleLanguages --arg='(de)'   # UI language on macOS
 ```
 
 With a browser already on the port, `start` with flags fails; quit it first. `getUserMedia` still needs HTTPS or `http://localhost`.

@@ -20,7 +20,7 @@ var fakeMediaArgs = []string{
 func Start(variant string, port int, args []string) {
 	fs := flag.NewFlagSet("start", flag.ExitOnError)
 	fakeMedia := fs.Bool("fake-media", false, "provide a synthetic camera and microphone and grant media permissions without a prompt")
-	extra := fs.StringArray("arg", nil, "extra Chrome command-line flag, repeatable (e.g. --arg=--lang=de)")
+	extra := fs.StringArray("arg", nil, "extra Chrome command-line flag, repeatable (e.g. --arg=--force-dark-mode)")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: browser-tools start [--fake-media] [--arg FLAG]...")
 		fmt.Fprintln(os.Stderr)
