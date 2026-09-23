@@ -4,7 +4,7 @@ A coding agent skill for browser automation using Go and the Chrome DevTools Pro
 
 ## Features
 
-- **Start Browser**: Launch Chrome with remote debugging, selectable via `--browser` or `BROWSER_TOOLS_BROWSER` (`chrome-stable`, `chrome-beta`, `chrome-dev`, `chrome-canary`, `cft-stable`, `cft-beta`, `cft-dev`, `cft-canary`)
+- **Start Browser**: Launch Chrome with remote debugging, selectable via `--browser` or `BROWSER_TOOLS_BROWSER` (`chrome-stable`, `chrome-beta`, `chrome-dev`, `chrome-canary`, `cft-stable`, `cft-beta`, `cft-dev`, `cft-canary`), optionally with a fake camera and microphone (`--fake-media`) or any extra Chrome flag (`--arg`)
 - **Chrome for Testing**: Download and update Chrome for Testing builds per channel (`update-cft`)
 - **Extensions**: Load, list, uninstall, and trigger the toolbar action of unpacked extensions on Chrome for Testing
 - **Navigate**: Open URLs in the active or a new tab, waiting for the page to load

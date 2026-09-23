@@ -30,7 +30,8 @@ func IsRunning(port int) bool {
 	return resp.StatusCode == 200
 }
 
-func Launch(variant string, port int) error {
+// Launch starts the browser; extra is appended to its command line.
+func Launch(variant string, port int, extra ...string) error {
 	cfg, ok := GetConfig(variant)
 	if !ok {
 		return fmt.Errorf("unknown browser variant: %s", variant)
@@ -53,6 +54,7 @@ func Launch(variant string, port int) error {
 	if IsChromeForTesting(variant) {
 		args = append(args, "--enable-unsafe-extension-debugging")
 	}
+	args = append(args, extra...)
 
 	c := exec.Command(cfg.Executable, args...)
 	c.Stdout = nil

@@ -25,6 +25,20 @@ Every command starts the browser automatically if it isn't running yet.
 BROWSER_TOOLS_BROWSER=chrome-canary ./scripts/browser-tools start
 ```
 
+`start` passes extra flags to Chrome. They only take effect when `start` launches the browser; if one is already listening on the port, `start` with flags exits with an error. Quit that browser first. Another `--port` does not help: every variant keeps one profile directory, and a second launch on the same profile hands over to the running instance.
+
+| Flag | Description |
+|---|---|
+| `--fake-media` | Adds `--use-fake-device-for-media-stream` and `--use-fake-ui-for-media-stream`: `getUserMedia` gets a synthetic camera (green test pattern with a running clock) and microphone, and the permission is granted without a prompt |
+| `--arg <flag>` | Appends any Chrome command-line flag; repeatable. Write it as `--arg=--flag=value` |
+
+```bash
+./scripts/browser-tools start --fake-media
+./scripts/browser-tools start --arg=--lang=de --arg=--force-dark-mode
+```
+
+`getUserMedia` needs a secure context: HTTPS or `http://localhost`.
+
 ## Global Options
 
 These flags are accepted before or after the command name, so `wait #x --timeout 30s` and `--timeout 30s wait #x` mean the same thing:

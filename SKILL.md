@@ -147,6 +147,17 @@ EOF
 
 A top-level `return` is a syntax error, so wrap statements in `(function(){ … })()`.
 
+## Launch flags
+
+Commands start the browser on their own. `start` does it explicitly and can pass Chrome flags, which only apply to a fresh launch:
+
+```bash
+./scripts/browser-tools start --fake-media            # fake camera + mic, permission granted without prompt
+./scripts/browser-tools start --arg=--lang=de         # any Chrome flag, repeatable
+```
+
+With a browser already on the port, `start` with flags fails; quit it first. `getUserMedia` still needs HTTPS or `http://localhost`.
+
 ## Global options
 
 Accepted before or after the command:
