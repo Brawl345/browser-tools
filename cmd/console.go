@@ -58,12 +58,15 @@ func Console(ctx context.Context, variant string, port int, args []string) {
 		}
 	})
 
-	if err := chromedp.Run(tabCtx, cdpruntime.Enable()); err != nil {
+	// Chrome replays its stored console messages on every Runtime.enable. The
+	// attach that picked this tab already enabled Runtime before the listener
+	// existed, so it is toggled off and on to get the replay here.
+	if err := RunBounded(tabCtx, cdpruntime.Disable(), cdpruntime.Enable()); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Runtime.enable flushes buffered events before its response; give the
+	// The replayed events arrive before the Runtime.enable response; give the
 	// listener goroutine a moment to finish processing them all.
 	time.Sleep(100 * time.Millisecond)
 

@@ -3,6 +3,7 @@ package browser
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -84,11 +85,34 @@ const (
 	activateRaiseWindow = 500 * time.Millisecond
 )
 
+// EnsureRunning launches the browser only when nothing listens on the port. A
+// browser that holds the port but is slow to answer (macOS App Nap throttles a
+// background window) is waited for instead, because a second launch would
+// open a new window on the same profile.
 func EnsureRunning(variant string, port int) error {
 	if IsRunning(port) {
 		return nil
 	}
-	return Launch(variant, port)
+	if !portInUse(port) {
+		return Launch(variant, port)
+	}
+	deadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(deadline) {
+		if IsRunning(port) {
+			return nil
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	return fmt.Errorf("something listens on port %d but does not answer as a browser", port)
+}
+
+func portInUse(port int) bool {
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), time.Second)
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
 }
 
 // probeTimeout caps the round of focus probes, so a tab stuck in a long script

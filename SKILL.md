@@ -49,7 +49,7 @@ Anywhere a selector is taken, three kinds work. Text is usually the shortest:
 ./scripts/browser-tools navigate https://example.com --new-tab
 ./scripts/browser-tools reload                           # --hard bypasses the cache
 ./scripts/browser-tools scroll "#section"                # or --x/--y/--top/--bottom
-./scripts/browser-tools resize 1280 720                   # --reset restores the default
+./scripts/browser-tools resize 1280 720                   # stays until --reset; --mobile --dpr 3 393 852 for a phone
 ./scripts/browser-tools tab                               # --activate/--close/--refresh <n>
 ```
 
@@ -59,7 +59,7 @@ Anywhere a selector is taken, three kinds work. Text is usually the shortest:
 ./scripts/browser-tools element "button#submit"           # JSON: count, text, value, attributes, box, style, visible
 ./scripts/browser-tools element "a.download" --attr href  # one line per match: any attribute, or text / html / value
 ./scripts/browser-tools html --filter "data-id=\"\d+\"" --lines 10
-./scripts/browser-tools console --errors-only
+./scripts/browser-tools console --errors-only             # includes messages logged before it ran
 ./scripts/browser-tools cookie                            # --all for every origin
 ./scripts/browser-tools dom-storage                       # --local / --session
 ```

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"browser-tools/browser"
 	"browser-tools/cmd"
 
 	flag "github.com/spf13/pflag"
@@ -31,6 +32,8 @@ var longRunning = map[string]bool{
 	"start":        true,
 	"update":       true,
 	"update-cft":   true,
+
+	browser.HolderCommand: true,
 }
 
 // armWatchdog ends the process once the command budget is spent. The timeout is
@@ -111,7 +114,7 @@ func usage() {
 		{"pdf [options]", "Save the current page as a PDF"},
 		{"pick-element <message>", "Interactively pick a DOM element"},
 		{"reload [--hard]", "Reload the current tab"},
-		{"resize [--reset] <w> <h>", "Set the viewport size"},
+		{"resize [options] <w> <h>", "Emulate a viewport size or phone, held until --reset"},
 		{"screenshot [--selector <sel>]", "Take a screenshot"},
 		{"scroll [<sel>|--x|--y|--top|--bottom]", "Scroll to an element or X/Y position"},
 		{"select [options] <sel> <val>", "Select a dropdown option"},
@@ -187,6 +190,8 @@ func main() {
 		cmd.Reload(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "resize":
 		cmd.Resize(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
+	case browser.HolderCommand:
+		cmd.HoldEmulation(bgCtx, *browserVariant, *port, flag.Args()[1:])
 	case "screenshot":
 		cmd.Screenshot(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "scroll":

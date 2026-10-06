@@ -57,6 +57,10 @@ The goroutine leaks this causes are irrelevant for a CLI tool (the process exits
 
 Tabs created via `browser.NewTab` may be cancelled, because we created them ourselves.
 
+## Per-session CDP state
+
+Every command is its own process, so anything a CDP session sets (Emulation overrides, enabled domains) ends with it. `resize` therefore runs a detached `emulation-holder`. Choosing the active tab already attaches and sends `Runtime.enable`, so a listener for replayed console messages has to toggle `Runtime.disable`/`enable` itself.
+
 ## Bound every round trip to a tab
 
 Because those contexts carry no cancellation, `chromedp.Run` against a tab that has closed itself never returns. Pages do close their own tab: a Tampermonkey install dialog vanishes the moment the button is clicked. Use `cmd.RunBounded` instead of `chromedp.Run` for anything aimed at a tab.

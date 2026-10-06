@@ -239,19 +239,26 @@ Options:
 
 ### resize
 
-Set the viewport size via `Emulation.setDeviceMetricsOverride`:
+Emulate a viewport size, or a phone, for the current tab:
 
 ```bash
 ./scripts/browser-tools resize 1280 720
-./scripts/browser-tools resize 375 812
-# Clear the override and restore the default size
+# Phone: mobile viewport, touch input, 3x pixel ratio
+./scripts/browser-tools resize --mobile --dpr 3 393 852
+./scripts/browser-tools resize --mobile --dpr 3 --user-agent "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" 393 852
+# Clear the emulation and restore the window's own size
 ./scripts/browser-tools resize --reset
 ```
 
-Width and height are in CSS pixels and must be positive integers.
+The emulation stays on the tab across commands, reloads and navigations until `resize --reset`, another `resize`, or the tab closes. A background `browser-tools emulation-holder` process keeps it alive.
+
+Width and height are in CSS pixels and must be positive integers. With `--mobile`, a page without `<meta name="viewport">` lays out at 980px wide like on a real phone, and `mouse click`/`dblclick` send touch taps.
 
 Options:
-- `--reset`: Clear the viewport override and restore the default size
+- `--mobile`: Mobile viewport and touch input (`navigator.maxTouchPoints`, `(pointer: coarse)`, taps)
+- `--dpr <n>`: Device pixel ratio (default: the screen's own)
+- `--user-agent <ua>`: User agent string; requests use it after the next reload
+- `--reset`: Clear the emulation and restore the default size
 
 ### cookie
 
@@ -481,7 +488,7 @@ Options:
 
 ### console
 
-Get browser console messages from the current tab:
+Get browser console messages and uncaught exceptions from the current tab, including those logged before the command ran (Chrome keeps the last 1000 since the page loaded):
 
 ```bash
 ./scripts/browser-tools console

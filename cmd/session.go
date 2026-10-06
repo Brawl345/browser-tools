@@ -69,8 +69,18 @@ func OnHit(tabCtx context.Context, body string, out any) error {
 	return json.Unmarshal(raw, out)
 }
 
-// PointerAt dispatches real mouse events at a viewport position.
+// PointerAt dispatches real mouse events at a viewport position. On a page
+// with touch emulation (`resize --mobile`) a left click is sent as a tap.
 func PointerAt(tabCtx context.Context, x, y float64, button input.MouseButton, clicks int64) error {
+	if clicks > 0 && button == input.Left {
+		var touch bool
+		if err := RunBounded(tabCtx, chromedp.Evaluate(`navigator.maxTouchPoints > 0`, &touch)); err != nil {
+			return err
+		}
+		if touch {
+			return TapAt(tabCtx, x, y, clicks)
+		}
+	}
 	return RunBounded(tabCtx, chromedp.ActionFunc(func(ctx context.Context) error {
 		if err := input.DispatchMouseEvent(input.MouseMoved, x, y).Do(ctx); err != nil {
 			return err
@@ -85,6 +95,22 @@ func PointerAt(tabCtx context.Context, x, y float64, button input.MouseButton, c
 			}
 			if err := input.DispatchMouseEvent(input.MouseReleased, x, y).
 				WithButton(button).WithClickCount(i).Do(ctx); err != nil {
+				return err
+			}
+		}
+		return nil
+	}))
+}
+
+// TapAt dispatches touch taps at a viewport position.
+func TapAt(tabCtx context.Context, x, y float64, taps int64) error {
+	return RunBounded(tabCtx, chromedp.ActionFunc(func(ctx context.Context) error {
+		point := []*input.TouchPoint{{X: x, Y: y, RadiusX: 4, RadiusY: 4, Force: 1}}
+		for range taps {
+			if err := input.DispatchTouchEvent(input.TouchStart, point).Do(ctx); err != nil {
+				return err
+			}
+			if err := input.DispatchTouchEvent(input.TouchEnd, []*input.TouchPoint{}).Do(ctx); err != nil {
 				return err
 			}
 		}
