@@ -1,8 +1,8 @@
-name: Release
+name: CI
 
 on:
   push:
-    branches: [master]
+  pull_request:
 
 permissions: {}
 
@@ -11,8 +11,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        env:
+          BROWSER_TOOLS_TEST_BROWSER: chrome-stable
+        run: xvfb-run -a go test -shuffle=on -count=1 ./...
+
   release:
     name: Release
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
       contents: write  # needed for git push + release creation
