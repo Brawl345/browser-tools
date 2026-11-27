@@ -126,15 +126,12 @@ func quietOpts() []chromedp.ContextOption {
 	}
 }
 
-// NewTab opens a new browser tab within an allocator context.
-func NewTab(allocCtx context.Context) (context.Context, context.CancelFunc) {
-	return chromedp.NewContext(allocCtx, quietOpts()...)
-}
-
 // AttachTab returns a context bound to an existing tab. The returned context has
 // no cancel function on purpose - cancelling it makes chromedp close that tab.
-func AttachTab(allocCtx context.Context, id TargetID) context.Context {
-	ctx, _ := chromedp.NewContext(allocCtx, append(quietOpts(), chromedp.WithTargetID(id))...)
+// The parent must already carry the browser connection: a context that has to
+// allocate one panics on its second Run once the first allocation failed.
+func AttachTab(brCtx context.Context, id TargetID) context.Context {
+	ctx, _ := chromedp.NewContext(brCtx, chromedp.WithTargetID(id))
 	return ctx
 }
 
@@ -149,8 +146,6 @@ type TabInfo struct {
 // websocket that answers target queries without opening a throwaway tab, and
 // caches one attached context per tab so repeated lookups stay cheap.
 type Session struct {
-	Alloc context.Context
-
 	brCtx context.Context
 	mu    sync.Mutex
 	tabs  map[TargetID]context.Context
@@ -177,7 +172,7 @@ func Open(ctx context.Context, variant string, port int) (*Session, error) {
 	}
 	c.Browser = b
 
-	return &Session{Alloc: allocCtx, brCtx: brCtx, tabs: map[TargetID]context.Context{}}, nil
+	return &Session{brCtx: brCtx, tabs: map[TargetID]context.Context{}}, nil
 }
 
 // Tab returns a cached context attached to the given tab.
@@ -187,7 +182,7 @@ func (s *Session) Tab(id TargetID) context.Context {
 	if ctx, ok := s.tabs[id]; ok {
 		return ctx
 	}
-	ctx := AttachTab(s.Alloc, id)
+	ctx := AttachTab(s.brCtx, id)
 	s.tabs[id] = ctx
 	return ctx
 }
@@ -286,13 +281,18 @@ func (s *Session) ActiveTab() (context.Context, error) {
 		return nil, err
 	}
 	if t == nil {
-		ctx, _ := NewTab(s.Alloc)
+		ctx, _ := s.NewTab()
 		if err := chromedp.Run(ctx); err != nil {
 			return nil, err
 		}
 		return ctx, nil
 	}
 	return s.Tab(t.TargetID), nil
+}
+
+// NewTab opens a new tab. Its context may be cancelled, since the tab is ours.
+func (s *Session) NewTab() (context.Context, context.CancelFunc) {
+	return chromedp.NewContext(s.brCtx)
 }
 
 // ActivateTabByID selects a tab by its target ID, leaving the frontmost app in

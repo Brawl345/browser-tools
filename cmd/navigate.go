@@ -40,7 +40,7 @@ func Navigate(ctx context.Context, variant string, port int, args []string) {
 
 	var tabCtx context.Context
 	if *newTab {
-		tabCtx, _ = browser.NewTab(s.Alloc)
+		tabCtx, _ = s.NewTab()
 		if err := RunBounded(tabCtx, browser.SelectCurrentTab()); err != nil {
 			fail("%v", err)
 		}
