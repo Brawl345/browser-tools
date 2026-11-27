@@ -62,7 +62,7 @@ func Launch(variant string, port int, extra ...string) error {
 	detachProcess(c)
 
 	fmt.Fprintf(os.Stderr, "Starting %s on port %d...\n", cfg.ProcessName, port)
-	return KeepFront(launchRaiseWindow, func() error {
+	err := KeepFront(launchRaiseWindow, func() error {
 		if err := c.Start(); err != nil {
 			return fmt.Errorf("failed to start browser: %w", err)
 		}
@@ -75,6 +75,10 @@ func Launch(variant string, port int, extra ...string) error {
 		}
 		return fmt.Errorf("browser did not become ready within 15 seconds")
 	})
+	if err == nil {
+		waitForExtensions(variant, port)
+	}
+	return err
 }
 
 // launchRaiseWindow and activateRaiseWindow bound how long the browser may take
@@ -156,6 +160,15 @@ func Open(ctx context.Context, variant string, port int) (*Session, error) {
 		EnsureDialogKeeper(variant, port)
 		ReportKeptDialogs(port)
 	}
+	brCtx, err := connect(ctx, port)
+	if err != nil {
+		return nil, err
+	}
+	return &Session{brCtx: brCtx, port: port, tabs: map[TargetID]context.Context{}}, nil
+}
+
+// connect returns a context holding a browser-level connection.
+func connect(ctx context.Context, port int) (context.Context, error) {
 	// Cancellation is cut off here: chromedp closes the target of every context
 	// that ends, and with a RemoteAllocator that includes tabs attached through
 	// WithTargetID. A deadline reaching a tab context would close the user's tab.
@@ -171,8 +184,7 @@ func Open(ctx context.Context, variant string, port int) (*Session, error) {
 		return nil, fmt.Errorf("cannot talk to the browser on port %d: %w", port, err)
 	}
 	c.Browser = b
-
-	return &Session{brCtx: brCtx, port: port, tabs: map[TargetID]context.Context{}}, nil
+	return brCtx, nil
 }
 
 // Tab returns a cached context attached to the given tab.

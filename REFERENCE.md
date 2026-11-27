@@ -16,7 +16,7 @@ Start Chrome with remote debugging:
 ./scripts/browser-tools start
 ```
 
-Every command starts the browser automatically if it isn't running yet.
+Every command starts the browser automatically if it isn't running yet. A fresh launch returns once the installed extensions have started, so the first command already reaches them, and Tampermonkey catches a `.user.js` opened right away.
 
 ```bash
 # Use a specific browser variant or port
