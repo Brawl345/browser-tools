@@ -43,14 +43,37 @@ var ErrTabStalled = errors.New("the tab stopped answering (it may have been clos
 // has to live outside the context.
 const tabPatience = 3 * time.Second
 
+// explainTabError turns the errors a tab round trip ends with into what
+// happened to the tab.
+func explainTabError(err error) string {
+	switch {
+	case errors.Is(err, ErrTabStalled):
+		return "the tab stopped answering: a script is keeping it busy, or it was closed"
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		return "the connection to the tab was lost: it crashed or was closed"
+	default:
+		return err.Error()
+	}
+}
+
 // RunBounded runs actions against a tab and gives up when the tab goes away.
 func RunBounded(tabCtx context.Context, actions ...chromedp.Action) error {
+	return runWithin(tabCtx, tabPatience, actions...)
+}
+
+// runWithin is RunBounded with a tighter bound, for calls that must not run
+// past a deadline.
+func runWithin(tabCtx context.Context, d time.Duration, actions ...chromedp.Action) error {
+	d = min(d, tabPatience)
+	if d <= 0 {
+		return ErrTabStalled
+	}
 	errc := make(chan error, 1)
 	go func() { errc <- chromedp.Run(tabCtx, actions...) }()
 	select {
 	case err := <-errc:
 		return err
-	case <-time.After(tabPatience):
+	case <-time.After(d):
 		return ErrTabStalled
 	}
 }
@@ -124,6 +147,11 @@ func Focus(tabCtx context.Context) error {
 }
 
 func fail(format string, a ...any) {
+	for i, v := range a {
+		if err, ok := v.(error); ok {
+			a[i] = explainTabError(err)
+		}
+	}
 	fmt.Fprintf(os.Stderr, "error: "+format+"\n", a...)
 	os.Exit(1)
 }

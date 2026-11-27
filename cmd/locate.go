@@ -355,7 +355,7 @@ func TryLocate(ctx context.Context, s *browser.Session, sel, want string) (*Matc
 		}
 
 		var raw []byte
-		err := RunBounded(tabCtx, chromedp.Evaluate(script, &raw))
+		err := runWithin(tabCtx, time.Until(deadline), chromedp.Evaluate(script, &raw))
 		if err != nil {
 			lastErr = err
 			// The tab may have gone away under us, so look again at which one
@@ -377,11 +377,11 @@ func TryLocate(ctx context.Context, s *browser.Session, sel, want string) (*Matc
 			}
 		}
 
-		if time.Now().After(deadline) {
-			scan.restore(tabCtx)
+		if !time.Now().Before(deadline) {
 			if lastErr != nil {
-				return nil, fmt.Errorf("error: looking for %s failed: %v\n", sel, lastErr)
+				return nil, fmt.Errorf("error: %s\n  while looking for %s\n  check `browser-tools tab` to see which tabs are left\n", explainTabError(lastErr), sel)
 			}
+			scan.restore(tabCtx)
 			return nil, locateError(tabCtx, sel, kind, want, last, s, scan.used)
 		}
 		if err == nil && last.N == 0 && want != StateAbsent && time.Since(start) > scanAfter {

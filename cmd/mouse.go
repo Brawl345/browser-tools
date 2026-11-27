@@ -53,8 +53,7 @@ func Mouse(ctx context.Context, variant string, port int, args []string) {
 		err = mouseNative(ctx, s, m, action, *to)
 	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+		fail("%v", err)
 	}
 
 	settle()
