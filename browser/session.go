@@ -61,6 +61,11 @@ func Launch(variant string, port int, extra ...string) error {
 			args = append(args, "--use-mock-keychain")
 		}
 	}
+	if runtime.GOOS == "darwin" {
+		// Chrome activates itself when it opens its startup window, but not for a
+		// window opened over CDP.
+		args = append(args, "--no-startup-window")
+	}
 	args = append(args, extra...)
 
 	c := exec.Command(cfg.Executable, args...)
@@ -69,23 +74,44 @@ func Launch(variant string, port int, extra ...string) error {
 	detachProcess(c)
 
 	fmt.Fprintf(os.Stderr, "Starting %s on port %d...\n", cfg.ProcessName, port)
-	err := KeepFront(launchRaiseWindow, func() error {
-		if err := c.Start(); err != nil {
-			return fmt.Errorf("failed to start browser: %w", err)
-		}
-		deadline := time.Now().Add(15 * time.Second)
-		for time.Now().Before(deadline) {
-			time.Sleep(500 * time.Millisecond)
-			if IsRunning(port) {
-				return nil
-			}
-		}
-		return fmt.Errorf("browser did not become ready within 15 seconds")
-	})
-	if err == nil {
-		waitForExtensions(variant, port)
+	if err := c.Start(); err != nil {
+		return fmt.Errorf("failed to start browser: %w", err)
 	}
-	return err
+	if err := waitUntilRunning(port, 15*time.Second); err != nil {
+		return err
+	}
+	if runtime.GOOS == "darwin" {
+		if err := openFirstWindow(port); err != nil {
+			return err
+		}
+	}
+	waitForExtensions(variant, port)
+	return nil
+}
+
+func waitUntilRunning(port int, d time.Duration) error {
+	deadline := time.Now().Add(d)
+	for time.Now().Before(deadline) {
+		time.Sleep(200 * time.Millisecond)
+		if IsRunning(port) {
+			return nil
+		}
+	}
+	return fmt.Errorf("browser did not become ready within %s", d)
+}
+
+func openFirstWindow(port int) error {
+	brCtx, err := connect(context.Background(), port)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(brCtx, 5*time.Second)
+	defer cancel()
+	c := chromedp.FromContext(brCtx)
+	if _, err := target.CreateTarget("about:blank").WithNewWindow(true).Do(cdp.WithExecutor(ctx, c.Browser)); err != nil {
+		return fmt.Errorf("cannot open a browser window: %w", err)
+	}
+	return nil
 }
 
 // Quit closes the browser listening on the port and returns once the port is
@@ -114,10 +140,10 @@ func Quit(port int) error {
 	return nil
 }
 
-// launchRaiseWindow and activateRaiseWindow bound how long the browser may take
-// to raise its window after a launch or a tab activation.
+// newWindowRaise and activateRaiseWindow bound how long the browser may take
+// to raise its window after opening a window or activating a tab.
 const (
-	launchRaiseWindow   = 1500 * time.Millisecond
+	newWindowRaise      = 1500 * time.Millisecond
 	activateRaiseWindow = 500 * time.Millisecond
 )
 
@@ -265,7 +291,7 @@ func (s *Session) NewTab() (context.Context, error) {
 		if err != nil && strings.Contains(err.Error(), "no browser is open") {
 			// On macOS Chrome keeps running without a window once its last tab
 			// is closed, and only a new window can host a tab then.
-			err = KeepFront(launchRaiseWindow, func() error {
+			err = KeepFront(newWindowRaise, func() error {
 				id, err = target.CreateTarget("about:blank").WithNewWindow(true).Do(ctx)
 				return err
 			})

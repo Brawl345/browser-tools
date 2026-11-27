@@ -14,7 +14,7 @@ Every command has to come back with a result inside `--timeout`. Waiting for an 
 
 `browser/tabs.go` decides the current tab from a per-port state file, because CDP cannot tell which tab is selected: `visibilityState` and `hasFocus()` lie while the window is covered or in the background, and `getTargets` order is not creation order. Input sent to a tab in the background of its window hangs, so a tab that becomes current without the user's doing is activated.
 
-`browser.KeepFront` wraps everything that makes Chrome raise its window (launch, `Target.activateTarget`) and re-activates the previously frontmost app on macOS. `Target.createTarget` and `Page.navigate` never raise the window.
+On macOS Chrome launches with `--no-startup-window` and gets its first window over CDP, because its own startup window activates the app. `browser.KeepFront` wraps `Target.activateTarget` and re-activates the previously frontmost app. `Target.createTarget` and `Page.navigate` never raise the window.
 
 `cmd/settle.go` holds the waiting that follows an action: `SettleAfter` around anything that changes the page, `WaitLoaded` after a navigation.
 
