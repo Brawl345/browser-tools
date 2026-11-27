@@ -7,10 +7,13 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
+	"unicode"
 
 	"browser-tools/browser"
 
+	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 )
 
@@ -243,6 +246,7 @@ const findScript = `(function(sel, kind, want){
 	if (res.error) return { error: res.error };
 
 	const hits = res.hits;
+	if (want === "probe") return { n: hits.length };
 	window.__btHits = hits;
 	if (!hits.length) {
 		window.__btHit = null;
@@ -578,6 +582,16 @@ func budgetDeadline(ctx context.Context) time.Time {
 func locateError(tabCtx context.Context, sel, kind, want string, last findResult, s *browser.Session, scanned bool) error {
 	var b strings.Builder
 
+	tabs, _ := s.Tabs()
+	sels := []string{sel}
+	if alt := textAlternative(sel, kind); alt != "" {
+		sels = append(sels, alt)
+	}
+	var elsewhere <-chan []tabHit
+	if last.N == 0 {
+		elsewhere = probeOtherTabs(s, tabs, chromedp.FromContext(tabCtx).Target.TargetID, sels)
+	}
+
 	var diag diagResult
 	var raw []byte
 	if err := RunBounded(tabCtx, chromedp.Evaluate(
@@ -621,14 +635,115 @@ func locateError(tabCtx context.Context, sel, kind, want string, last findResult
 	if len(diag.Texts) > 0 {
 		fmt.Fprintf(&b, "  texts on the page: %s\n", strings.Join(quoteAll(diag.Texts), ", "))
 	}
+	if last.N == 0 && len(sels) > 1 {
+		if n := probe(tabCtx, sels[1], probePatience); n > 0 {
+			fmt.Fprintf(&b, "  as CSS this looks for a <%s> tag; %q matches %d element(s) here\n", strings.Fields(sel)[0], sels[1], n)
+		}
+	}
 
 	if scanned {
 		fmt.Fprintf(&b, "  the whole page was scrolled through, so lazily rendered parts were given a chance\n")
 	}
-	if tabs, err := s.Tabs(); err == nil && len(tabs) > 1 {
+	var hits []tabHit
+	if elsewhere != nil {
+		hits = <-elsewhere
+	}
+	for _, h := range hits {
+		fmt.Fprintf(&b, "  %q matches in tab %d (%s): run `browser-tools tab --activate %d`\n",
+			h.sel, h.idx, firstNonEmpty(truncate(h.title, 40), "no title"), h.idx)
+	}
+	if len(hits) == 0 && len(tabs) > 1 {
 		fmt.Fprintf(&b, "  %d tabs are open — check `browser-tools tab` if this is the wrong one\n", len(tabs))
 	}
 	return fmt.Errorf("%s", b.String())
+}
+
+// probePatience bounds the look into each tab once the wait is over; the report
+// has to be out before the watchdog fires.
+const probePatience = 500 * time.Millisecond
+
+// maxProbedTabs caps how many other tabs a failed search looks into.
+const maxProbedTabs = 10
+
+type tabHit struct {
+	idx   int
+	title string
+	sel   string
+}
+
+// probe counts the matches of a selector without scrolling or waiting.
+func probe(tabCtx context.Context, sel string, d time.Duration) int {
+	script := fmt.Sprintf("(%s)(%s, %s, %s)", findScript, jsonStr(sel), jsonStr(SelectorKind(sel)), jsonStr("probe"))
+	var res findResult
+	var raw []byte
+	if runWithin(tabCtx, d, chromedp.Evaluate(script, &raw)) != nil || json.Unmarshal(raw, &res) != nil {
+		return 0
+	}
+	return res.N
+}
+
+// probeOtherTabs looks for the selectors in every other tab at once and
+// reports the first one that matches per tab.
+func probeOtherTabs(s *browser.Session, tabs []browser.TabInfo, current target.ID, sels []string) <-chan []tabHit {
+	out := make(chan []tabHit, 1)
+	go func() {
+		var mu sync.Mutex
+		found := make([]*tabHit, len(tabs))
+		var wg sync.WaitGroup
+		probed := 0
+		for i, t := range tabs {
+			if target.ID(t.ID) == current || probed == maxProbedTabs {
+				continue
+			}
+			probed++
+			wg.Go(func() {
+				tabCtx := s.Tab(target.ID(t.ID))
+				for _, sel := range sels {
+					if probe(tabCtx, sel, probePatience) > 0 {
+						mu.Lock()
+						found[i] = &tabHit{idx: i + 1, title: t.Title, sel: sel}
+						mu.Unlock()
+						return
+					}
+				}
+			})
+		}
+		done := make(chan struct{})
+		go func() { wg.Wait(); close(done) }()
+		select {
+		case <-done:
+		case <-time.After(probePatience + 200*time.Millisecond):
+		}
+		var hits []tabHit
+		mu.Lock()
+		for _, h := range found {
+			if h != nil {
+				hits = append(hits, *h)
+			}
+		}
+		mu.Unlock()
+		out <- hits
+	}()
+	return out
+}
+
+// textAlternative returns the text= form of a CSS selector that reads like a
+// visible label ("Feed suchen", "Speichern"), or "" when it looks like CSS.
+func textAlternative(sel, kind string) string {
+	s := strings.TrimSpace(sel)
+	if kind != "css" || s == "" || strings.ContainsAny(s, ".#[]>:=*+~()\"'") {
+		return ""
+	}
+	prose := strings.Contains(s, " ")
+	for _, r := range s {
+		if unicode.IsUpper(r) || r > unicode.MaxASCII {
+			prose = true
+		}
+	}
+	if !prose {
+		return ""
+	}
+	return "text=" + s
 }
 
 // forceAvailable is set by commands that take --force, so the failure report

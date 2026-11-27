@@ -97,11 +97,13 @@ Once the element exists it is scrolled into view, which lets players and lazily 
 A failed selector reports what was wrong instead of a bare timeout:
 
 ```
-error: nothing matches text=Instal Now
-  tab: Script Installation | Tampermonkey — https://www.tampermonkey.net/…
-  texts on the page: "Neu installieren", "Abbrechen", "Tampermonkey®"
-  2 tabs are open — check `browser-tools tab` if this is the wrong one
+error: nothing matches text=Install
+  tab: my-script.user.js — https://github.com/…
+  texts on the page: "Raw", "Download raw file", "Copy raw file"
+  "text=Install" matches in tab 2 (Tampermonkey): run `browser-tools tab --activate 2`
 ```
+
+When nothing matches, the other open tabs are searched too. A CSS selector that reads like a label (`Feed suchen`, `Speichern`) is also tried as `text=`, here and in the other tabs.
 
 ```
 error: .delete matches 1 element(s) but none is visible
