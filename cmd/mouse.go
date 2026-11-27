@@ -17,6 +17,7 @@ func Mouse(ctx context.Context, variant string, port int, args []string) {
 	fs := flag.NewFlagSet("mouse", flag.ExitOnError)
 	to := fs.String("to", "", "target selector for drag")
 	force := fs.Bool("force", false, "dispatch JS events even if the element is not visible")
+	forceAvailable = true
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: browser-tools mouse <action> [--to <selector>] [--force] <selector>")
 		fmt.Fprintln(os.Stderr)

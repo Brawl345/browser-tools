@@ -288,6 +288,59 @@ const diagnoseScript = `(function(sel, kind){
 
 	const where = { url: location.href, title: document.title };
 
+	const describe = e => e.tagName.toLowerCase() +
+		(e.id ? "#" + CSS.escape(e.id) : "") +
+		(typeof e.className === "string" && e.className.trim() ? "." + e.className.trim().split(/\s+/).map(c => CSS.escape(c)).join(".") : "");
+
+	function uniqueSelector(e) {
+		const short = e.id ? "#" + CSS.escape(e.id) : describe(e);
+		try { if (document.querySelectorAll(short).length === 1) return short; } catch (x) {}
+		const parts = [];
+		for (let c = e; c && c.parentElement && c !== document.documentElement; c = c.parentElement) {
+			let i = 1;
+			for (let s = c.previousElementSibling; s; s = s.previousElementSibling) if (s.localName === c.localName) i++;
+			parts.unshift(c.localName + ":nth-of-type(" + i + ")");
+			if (c.id) { parts[0] = "#" + CSS.escape(c.id); break; }
+		}
+		return parts.join(" > ");
+	}
+
+	const shown = e => { const r = e.getBoundingClientRect(), s = getComputedStyle(e); return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none"; };
+
+	function hoverRules(sheets, out) {
+		for (const sheet of sheets) {
+			let rules;
+			try { rules = sheet.cssRules; } catch (x) { continue; }
+			for (const r of rules) {
+				if (r.cssRules) hoverRules([r], out);
+				if (r.selectorText && r.selectorText.includes(":hover")) out.push(r.selectorText);
+			}
+		}
+		return out;
+	}
+
+	// A rule like ".card:hover .actions" that applies to the element or the
+	// ancestor hiding it reveals it on hover; the part before ":hover" is what to hover.
+	function hoverTarget(el, hider) {
+		const sheets = [...document.styleSheets];
+		const root = el.getRootNode();
+		if (root.adoptedStyleSheets) sheets.push(...root.adoptedStyleSheets);
+		for (const text of hoverRules(sheets, [])) {
+			for (const s of text.split(",")) {
+				const at = s.indexOf(":hover");
+				if (at < 0) continue;
+				const plain = s.replace(/:hover/g, "").trim();
+				const pre = s.slice(0, at).trim() || "*";
+				try {
+					if (![el, hider].some(e => e && e.matches(plain))) continue;
+					const host = el.parentElement && el.parentElement.closest(pre);
+					if (host && shown(host)) return host;
+				} catch (x) {}
+			}
+		}
+		return null;
+	}
+
 	if (el) {
 		const r = el.getBoundingClientRect();
 		const s = getComputedStyle(el);
@@ -296,6 +349,21 @@ const diagnoseScript = `(function(sel, kind){
 		if (s.visibility === "hidden") reasons.push("visibility:hidden");
 		if (s.opacity === "0") reasons.push("opacity:0");
 		if (r.width === 0 || r.height === 0) reasons.push("box is " + Math.round(r.width) + "x" + Math.round(r.height));
+		let hider = null, hiddenBy = "", hover = "", container = "";
+		if (!shown(el)) {
+			for (let c = el; c && c.nodeType === 1; c = c.parentElement || (c.getRootNode().host || null)) {
+				const cs = getComputedStyle(c);
+				if (cs.display === "none") hider = c;
+				else if (cs.visibility === "hidden" && !(c.parentElement && getComputedStyle(c.parentElement).visibility === "hidden")) hider = hider || c;
+			}
+			hider = hider || el;
+			if (hider !== el) hiddenBy = describe(hider) + " (" + (getComputedStyle(hider).display === "none" ? "display:none" : "visibility:hidden") + ")";
+			const h = hoverTarget(el, hider);
+			if (h) hover = uniqueSelector(h);
+			let c = hider.parentElement;
+			while (c && c !== document.body && !shown(c)) c = c.parentElement;
+			if (c && c !== document.body && c !== document.documentElement) container = uniqueSelector(c);
+		}
 		let cover = "";
 		if (r.width > 0 && r.height > 0) {
 			const cx = Math.min(Math.max(r.left + r.width / 2, 1), innerWidth - 1);
@@ -307,7 +375,7 @@ const diagnoseScript = `(function(sel, kind){
 					(typeof top.className === "string" && top.className.trim() ? "." + top.className.trim().split(/\s+/).join(".") : "");
 			}
 		}
-		return { ...where, found: true, reasons, cover, tag: el.tagName.toLowerCase() };
+		return { ...where, found: true, reasons, cover, tag: el.tagName.toLowerCase(), hiddenBy, hover, container };
 	}
 
 	if (kind === "chain" && window.__btResolve) {
@@ -371,6 +439,9 @@ type diagResult struct {
 	Reasons      []string `json:"reasons"`
 	Cover        string   `json:"cover"`
 	Tag          string   `json:"tag"`
+	HiddenBy     string   `json:"hiddenBy"`
+	Hover        string   `json:"hover"`
+	Container    string   `json:"container"`
 	Closest      string   `json:"closest"`
 	ClosestCount int      `json:"closestCount"`
 	Texts        []string `json:"texts"`
@@ -529,8 +600,19 @@ func locateError(tabCtx context.Context, sel, kind, want string, last findResult
 		if len(diag.Reasons) > 0 {
 			fmt.Fprintf(&b, "  the <%s> is there but %s\n", diag.Tag, strings.Join(diag.Reasons, ", "))
 		}
+		if diag.HiddenBy != "" {
+			fmt.Fprintf(&b, "  hidden by its ancestor %s\n", diag.HiddenBy)
+		}
+		switch {
+		case diag.Hover != "":
+			fmt.Fprintf(&b, "  it shows on hover: run `browser-tools mouse hover '%s'` first\n", diag.Hover)
+		case diag.Container != "" && want == StateVisible:
+			fmt.Fprintf(&b, "  if it only shows on hover or after opening a menu, act on '%s' first\n", diag.Container)
+		}
 		if diag.Cover != "" {
-			fmt.Fprintf(&b, "  covered by %s — click that instead, or pass --force\n", diag.Cover)
+			fmt.Fprintf(&b, "  covered by %s — click that instead%s\n", diag.Cover, forceNote(", or pass --force"))
+		} else if len(diag.Reasons) > 0 && want == StateVisible {
+			fmt.Fprint(&b, forceNote("  --force acts on it through JavaScript while it stays hidden\n"))
 		}
 	}
 	if diag.Closest != "" {
@@ -547,6 +629,17 @@ func locateError(tabCtx context.Context, sel, kind, want string, last findResult
 		fmt.Fprintf(&b, "  %d tabs are open — check `browser-tools tab` if this is the wrong one\n", len(tabs))
 	}
 	return fmt.Errorf("%s", b.String())
+}
+
+// forceAvailable is set by commands that take --force, so the failure report
+// only suggests it where it exists.
+var forceAvailable bool
+
+func forceNote(s string) string {
+	if forceAvailable {
+		return s
+	}
+	return ""
 }
 
 func quoteAll(ss []string) []string {

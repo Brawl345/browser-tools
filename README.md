@@ -15,7 +15,7 @@ A coding agent skill for browser automation using Go and the Chrome DevTools Pro
 - **Shadow DOM**: CSS and text selectors reach into open shadow roots
 - **Element Info**: Read a selector's text, value, attributes, bounding box, computed style and visibility
 - **Wait for Element**: Block until an element is visible, hidden, present, or absent, or until the page goes idle
-- **Failure Reports**: A selector that does not resolve names the tab, says whether the element was missing, invisible or covered, and lists what is on the page instead
+- **Failure Reports**: A selector that does not resolve names the tab, says whether the element was missing, invisible or covered, and suggests what to try next
 - **Dialogs**: Answer alert, confirm, prompt and beforeunload dialogs, accepting them unless told otherwise
 - **Mouse Actions**: Click, double-click, hover, right-click, and drag
 - **Fill Text Fields**: Fill input and textarea elements

@@ -104,11 +104,15 @@ error: nothing matches text=Instal Now
 ```
 
 ```
-error: #overlay-button matches 1 element(s) but none is visible
+error: .delete matches 1 element(s) but none is visible
   tab: Example — https://example.com/
-  the <div> is there but display:none, box is 0x0
-  covered by div.modal-backdrop — click that instead, or pass --force
+  the <button> is there but box is 0x0
+  hidden by its ancestor div.actions (display:none)
+  it shows on hover: run `browser-tools mouse hover '#card-3'` first
+  --force acts on it through JavaScript while it stays hidden
 ```
+
+The hover target comes from the page's `:hover` style rules. When none reveals the element, the report names the nearest visible container to hover or open instead. An element drawn over the target is named as `covered by …`.
 
 For a CSS selector that matches nothing, the report names the longest prefix that still matches something, so it is clear which part of the chain is wrong.
 

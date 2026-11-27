@@ -14,6 +14,7 @@ func Check(ctx context.Context, variant string, port int, args []string) {
 	fs := flag.NewFlagSet("check", flag.ExitOnError)
 	uncheck := fs.Bool("uncheck", false, "uncheck the element (checkboxes only)")
 	force := fs.Bool("force", false, "set the value via JS even if the element is not visible")
+	forceAvailable = true
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: browser-tools check [--uncheck] [--force] <selector>")
 		fmt.Fprintln(os.Stderr)

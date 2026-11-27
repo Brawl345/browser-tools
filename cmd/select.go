@@ -14,6 +14,7 @@ func SelectDropdown(ctx context.Context, variant string, port int, args []string
 	byLabel := fs.Bool("by-label", false, "select the option by its visible label instead of its value")
 	byIndex := fs.Bool("by-index", false, "select the option by its 0-based index")
 	force := fs.Bool("force", false, "apply even if the element is not visible")
+	forceAvailable = true
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: browser-tools select [--by-label | --by-index] [--force] <selector> <value>")
 		fmt.Fprintln(os.Stderr)
