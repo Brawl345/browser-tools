@@ -12,7 +12,7 @@ A compiled Go binary that drives Chrome over the DevTools Protocol. Run it with 
 {basedir}/scripts/browser-tools <command> [options]
 ```
 
-Every command waits by itself. It polls until the element is there and the page has gone quiet, so adding `sleep` only makes things slower. Commands work on the tab that is in front and keep looking while they wait, which picks up a dialog that opens in a new tab. When a selector does not resolve, the error names the tab and says whether the element was missing, invisible or covered.
+Every command waits by itself. It polls until the element is there and the page has gone quiet, so adding `sleep` only makes things slower. Commands act on the current tab, the one last opened, navigated or activated. A popup, a link opening a new tab, or an extension dialog becomes current by itself, even mid-wait, and closing it returns to the tab before. When a selector does not resolve, the error names the tab and says whether the element was missing, invisible or covered.
 
 ## Selectors
 
@@ -50,7 +50,7 @@ Anywhere a selector is taken, three kinds work. Text is usually the shortest:
 ./scripts/browser-tools reload                           # --hard bypasses the cache
 ./scripts/browser-tools scroll "#section"                # or --x/--y/--top/--bottom
 ./scripts/browser-tools resize 1280 720                   # stays until --reset; --mobile --dpr 3 393 852 for a phone
-./scripts/browser-tools tab                               # --activate/--close/--refresh <n>
+./scripts/browser-tools tab                               # in opening order, ▶ = current; --activate/--close/--refresh <n>
 ```
 
 ## Reading

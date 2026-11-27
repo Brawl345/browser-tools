@@ -24,12 +24,15 @@ func MustSession(ctx context.Context, variant string, port int) *browser.Session
 	return s
 }
 
-// MustTab returns the tab the user is looking at.
+// MustTab returns the current tab, already attached.
 func MustTab(s *browser.Session) context.Context {
 	tabCtx, err := s.ActiveTab()
 	if err != nil || tabCtx == nil {
 		fmt.Fprintf(os.Stderr, "error: no usable browser tab: %v\n", err)
 		os.Exit(1)
+	}
+	if err := RunBounded(tabCtx); err != nil {
+		fail("%v", err)
 	}
 	return tabCtx
 }

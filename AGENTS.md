@@ -10,7 +10,9 @@ Every command has to come back with a result inside `--timeout`. Waiting for an 
 
 `browser.Session` owns the connection. It allocates the chromedp browser by hand, so `Target.getTargets` and the Extensions domain are reachable without opening a tab, and it caches one attached context per tab.
 
-`cmd/locate.go` is the single selector engine. Every command that takes a selector goes through `Locate`, which polls one in-page script handling CSS, XPath and `text=`, re-resolves the active tab while it waits, and renders the failure report. Commands act on what it returns: `Match.X/Y` for pointer events, `window.__btHit` for JS, `Match.Path` where chromedp needs a CSS selector.
+`cmd/locate.go` is the single selector engine. Every command that takes a selector goes through `Locate`, which polls one in-page script handling CSS, XPath and `text=`, re-resolves the current tab while it waits, and renders the failure report. Commands act on what it returns: `Match.X/Y` for pointer events, `window.__btHit` for JS, `Match.Path` where chromedp needs a CSS selector.
+
+`browser/tabs.go` decides the current tab from a per-port state file, because CDP cannot tell which tab is selected: `visibilityState` and `hasFocus()` lie while the window is covered or in the background, and `getTargets` order is not creation order. Input sent to a tab in the background of its window hangs, so a tab that becomes current without the user's doing is activated.
 
 `browser.KeepFront` wraps everything that makes Chrome raise its window (launch, `Target.activateTarget`) and re-activates the previously frontmost app on macOS. `Target.createTarget` and `Page.navigate` never raise the window.
 

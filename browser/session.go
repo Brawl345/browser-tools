@@ -7,10 +7,8 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	cdp "github.com/chromedp/cdproto/cdp"
@@ -116,10 +114,6 @@ func portInUse(port int) bool {
 	return true
 }
 
-// probeTimeout caps the round of focus probes, so a tab stuck in a long script
-// cannot stall tab discovery.
-const probeTimeout = 700 * time.Millisecond
-
 func quietOpts() []chromedp.ContextOption {
 	return []chromedp.ContextOption{
 		chromedp.WithLogf(func(string, ...any) {}),
@@ -148,6 +142,7 @@ type TabInfo struct {
 // caches one attached context per tab so repeated lookups stay cheap.
 type Session struct {
 	brCtx context.Context
+	port  int
 	mu    sync.Mutex
 	tabs  map[TargetID]context.Context
 }
@@ -177,7 +172,7 @@ func Open(ctx context.Context, variant string, port int) (*Session, error) {
 	}
 	c.Browser = b
 
-	return &Session{brCtx: brCtx, tabs: map[TargetID]context.Context{}}, nil
+	return &Session{brCtx: brCtx, port: port, tabs: map[TargetID]context.Context{}}, nil
 }
 
 // Tab returns a cached context attached to the given tab.
@@ -203,86 +198,8 @@ func (s *Session) Do(fn func(ctx context.Context) error) error {
 	return fn(cdp.WithExecutor(s.brCtx, c.Browser))
 }
 
-// Targets returns every page tab, oldest first.
-func (s *Session) Targets() ([]*target.Info, error) {
-	c := chromedp.FromContext(s.brCtx)
-	all, err := target.GetTargets().Do(cdp.WithExecutor(s.brCtx, c.Browser))
-	if err != nil {
-		return nil, err
-	}
-	var pages []*target.Info
-	for _, t := range all {
-		if t.Type == "page" && t.Subtype == "" {
-			pages = append(pages, t)
-		}
-	}
-	return pages, nil
-}
-
-// Tabs returns every page tab as display info.
-func (s *Session) Tabs() ([]TabInfo, error) {
-	pages, err := s.Targets()
-	if err != nil {
-		return nil, err
-	}
-	tabs := make([]TabInfo, 0, len(pages))
-	for _, t := range pages {
-		tabs = append(tabs, TabInfo{ID: string(t.TargetID), Title: t.Title, URL: t.URL})
-	}
-	sort.Slice(tabs, func(i, j int) bool { return tabs[i].ID < tabs[j].ID })
-	return tabs, nil
-}
-
-// ActiveTarget returns the tab the user is looking at. The tab holding keyboard
-// focus wins; when the browser itself is in the background, the selected tab of
-// a window is taken instead. Newer tabs beat older ones, so a dialog that just
-// opened is picked up rather than the page that spawned it.
-func (s *Session) ActiveTarget() (*target.Info, error) {
-	pages, err := s.Targets()
-	if err != nil {
-		return nil, err
-	}
-	if len(pages) == 0 {
-		return nil, nil
-	}
-
-	// All tabs are asked at once under one deadline, so a tab that is busy with
-	// a long script costs no more than a tab that answers straight away.
-	scores := make([]atomic.Int32, len(pages))
-	var wg sync.WaitGroup
-	for i, p := range pages {
-		wg.Go(func() { scores[i].Store(s.focusScore(p.TargetID)) })
-	}
-	done := make(chan struct{})
-	go func() { wg.Wait(); close(done) }()
-	select {
-	case <-done:
-	case <-time.After(probeTimeout):
-		// Probes are left running. Cancelling one would close its tab.
-	}
-
-	best, bestScore := pages[len(pages)-1], int32(-1)
-	for i := len(pages) - 1; i >= 0; i-- {
-		if v := scores[i].Load(); v > bestScore {
-			best, bestScore = pages[i], v
-		}
-	}
-	return best, nil
-}
-
-// focusScore rates a tab: 2 = has keyboard focus, 1 = selected in its window,
-// 0 = hidden or unreachable.
-func (s *Session) focusScore(id TargetID) int32 {
-	var score int32
-	if err := chromedp.Run(s.Tab(id), chromedp.Evaluate(
-		`document.hasFocus() ? 2 : (document.visibilityState === "visible" ? 1 : 0)`, &score)); err != nil {
-		return 0
-	}
-	return score
-}
-
-// ActiveTab returns a context for the tab the user is looking at, opening one
-// when the browser has no page tab at all.
+// ActiveTab returns a context for the current tab, opening one when the
+// browser has no page tab at all.
 func (s *Session) ActiveTab() (context.Context, error) {
 	t, err := s.ActiveTarget()
 	if err != nil {
@@ -313,15 +230,24 @@ func (s *Session) NewTab() (context.Context, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.MakeCurrent(id)
 	return s.Tab(id), nil
 }
 
 // ActivateTabByID selects a tab by its target ID, leaving the frontmost app in
 // front.
 func (s *Session) ActivateTabByID(id string) error {
+	err := s.activate(TargetID(id))
+	if err == nil {
+		s.MakeCurrent(TargetID(id))
+	}
+	return err
+}
+
+func (s *Session) activate(id TargetID) error {
 	c := chromedp.FromContext(s.brCtx)
 	return KeepFront(activateRaiseWindow, func() error {
-		return target.ActivateTarget(target.ID(id)).Do(cdp.WithExecutor(s.brCtx, c.Browser))
+		return target.ActivateTarget(id).Do(cdp.WithExecutor(s.brCtx, c.Browser))
 	})
 }
 

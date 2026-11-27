@@ -108,9 +108,6 @@ func Resize(ctx context.Context, variant string, port int, args []string) {
 	}
 
 	tabCtx := MustTab(MustSession(ctx, variant, port))
-	if err := RunBounded(tabCtx); err != nil {
-		fail("%v", err)
-	}
 	id := chromedp.FromContext(tabCtx).Target.TargetID
 
 	stopped := browser.StopEmulation(port, id)

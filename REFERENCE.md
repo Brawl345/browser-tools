@@ -77,7 +77,11 @@ An XPath must select element nodes. `//h1/text()` and `//a/@href` end in an erro
 
 ## Waiting and failures
 
-Every selector is polled until it reaches the wanted state or `--timeout` runs out. While it polls, it also re-checks which tab is in front, so an element that appears in a tab opened during the wait is still found. That is what makes extension and OAuth dialogs work without a detour through `tab`.
+Every selector is polled until it reaches the wanted state or `--timeout` runs out. While it polls, it also re-checks which tab is current, so an element that appears in a tab opened during the wait is still found. That is what makes extension and OAuth dialogs work without a detour through `tab`.
+
+## The current tab
+
+Commands act on the current tab: the tab that `navigate --new-tab` or `tab --activate` picked last, or that the browser started with. A tab opened since takes over when it is in front of the user: a popup window, an extension dialog in its own window, or a tab a page opened through a link or `window.open`. Tabs opened in the background, like those an extension creates while saving images, leave the current tab alone. When the current tab closes, the one that was current before comes back and is brought to the front, so finishing a dialog lands on the page that opened it.
 
 Once the element exists it is scrolled into view, which lets players and lazily rendered sections finish building. If nothing matches at all, the page is walked from top to bottom to wake up content that only renders near the viewport, and scrolled back when the search fails anyway.
 
@@ -561,7 +565,7 @@ Shared selection options (all actions):
 
 ### tab
 
-List, activate, close, or refresh tabs. The active tab is marked with `▶`:
+List, activate, close, or refresh tabs. Tabs are numbered in the order they were opened, so a number stays put until a tab before it closes. The current tab is marked with `▶`:
 
 ```bash
 ./scripts/browser-tools tab
@@ -571,7 +575,7 @@ List, activate, close, or refresh tabs. The active tab is marked with `▶`:
 ```
 
 Options:
-- `--activate <n>`: Activate tab by 1-based index
+- `--activate <n>`: Bring the tab to the front and make it the current one
 - `--close <n>`: Close tab by 1-based index
 - `--refresh <n>`: Refresh tab by 1-based index
 
