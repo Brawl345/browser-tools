@@ -11,7 +11,7 @@ A coding agent skill for browser automation using Go and the Chrome DevTools Pro
 - **Reload**: Reload the active tab, optionally bypassing the cache
 - **Execute JavaScript**: Run inline code, files, or STDIN input
 - **Element Picker**: Interactive DOM element selection
-- **CSS, XPath or text**: Every selector argument takes a CSS selector, an XPath expression, or `text=Some Label`, which matches visible text, button values, ARIA labels and placeholders
+- **CSS, XPath or text**: Every selector argument takes a CSS selector, an XPath expression, or `text=Some Label`, which matches visible text, button values, ARIA labels and placeholders, chained with `>>` to search inside a match
 - **Shadow DOM**: CSS and text selectors reach into open shadow roots
 - **Element Info**: Read a selector's text, value, attributes, bounding box, computed style and visibility
 - **Wait for Element**: Block until an element is visible, hidden, present, or absent, or until the page goes idle

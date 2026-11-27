@@ -22,6 +22,7 @@ Anywhere a selector is taken, three kinds work. Text is usually the shortest:
 ./scripts/browser-tools mouse click "text=Sign in"      # visible text, button value, aria-label, placeholder, alt
 ./scripts/browser-tools mouse click "#submit"           # CSS, reaches into open shadow roots
 ./scripts/browser-tools mouse click "//tr[3]//a"        # XPath (starts with / or ./)
+./scripts/browser-tools mouse click ".toolbar >> text=Save"   # look inside each match of the part before
 ```
 
 `text=` matches case-insensitively, prefers an exact label over a partial one, and picks the innermost element carrying the text. On a page that comes in several languages the label changes with the locale, so a CSS selector holds up better there.

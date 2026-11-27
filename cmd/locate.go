@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -45,10 +46,20 @@ type Match struct {
 	Tab context.Context `json:"-"`
 }
 
+var (
+	chainPattern   = regexp.MustCompile(`\s>>>?\s`)
+	cssTextPattern = regexp.MustCompile(`\S\s+text=`)
+)
+
 // SelectorKind classifies a selector string.
 func SelectorKind(sel string) string {
 	s := strings.TrimSpace(sel)
 	switch {
+	case chainPattern.MatchString(s):
+		return "chain"
+	case !strings.HasPrefix(s, "text=") && !strings.HasPrefix(s, "/") && !strings.HasPrefix(s, "./") &&
+		!strings.HasPrefix(s, "(") && cssTextPattern.MatchString(s):
+		return "chain"
 	case strings.HasPrefix(s, "text="):
 		return "text"
 	case strings.HasPrefix(s, "/"), strings.HasPrefix(s, "./"),
@@ -68,30 +79,31 @@ const findScript = `(function(sel, kind, want){
 	// nodes rather than a string.
 	const norm = s => (s == null ? "" : String(s)).replace(/\s+/g, " ").trim();
 
-	function shadowRoots() {
+	function shadowRoots(root) {
 		const out = [];
-		const walk = root => {
-			for (const el of root.querySelectorAll("*")) {
+		const walk = r => {
+			for (const el of r.querySelectorAll("*")) {
 				if (el.shadowRoot) { out.push(el.shadowRoot); walk(el.shadowRoot); }
 			}
 		};
-		walk(document);
+		if (root.shadowRoot) { out.push(root.shadowRoot); walk(root.shadowRoot); }
+		walk(root);
 		return out;
 	}
 
-	function byCSS(s) {
+	function byCSS(s, root) {
 		let hits = [];
-		try { hits = [...document.querySelectorAll(s)]; }
+		try { hits = [...root.querySelectorAll(s)]; }
 		catch (e) { return { error: "invalid CSS selector: " + e.message }; }
 		if (!hits.length) {
-			for (const r of shadowRoots()) hits.push(...r.querySelectorAll(s));
+			for (const r of shadowRoots(root)) hits.push(...r.querySelectorAll(s));
 		}
 		return { hits };
 	}
 
-	function byXPath(s) {
+	function byXPath(s, root) {
 		let r;
-		try { r = document.evaluate(s, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null); }
+		try { r = document.evaluate(s, root, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null); }
 		catch (e) { return { error: "invalid XPath: " + e.message }; }
 		const hits = [];
 		let other = 0;
@@ -144,11 +156,11 @@ const findScript = `(function(sel, kind, want){
 
 	// labelCap is the longest text an element may carry and still count as a
 	// label for it.
-	function byText(needle) {
+	function byText(needle, root) {
 		const want = norm(needle).toLowerCase();
 		const labelCap = Math.max(400, want.length * 2);
 		const exact = [], loose = [];
-		for (const r of [document, ...shadowRoots()]) {
+		for (const r of [root, ...shadowRoots(root)]) {
 			const texts = textMap(r, labelCap);
 			for (const el of r.querySelectorAll("*")) {
 				if (SKIP[el.tagName]) continue;
@@ -193,7 +205,41 @@ const findScript = `(function(sel, kind, want){
 		return parts.join(" > ");
 	}
 
-	const res = kind === "xpath" ? byXPath(sel) : kind === "text" ? byText(sel.slice(5)) : byCSS(sel);
+	function kindOf(p) {
+		return p.startsWith("text=") ? "text" : /^\(?\.?\//.test(p) ? "xpath" : "css";
+	}
+
+	// "a >> b" and "a >>> b" look for b inside each match of a, shadow root
+	// included; "css text=Label" is short for "css >> text=Label".
+	function split(s) {
+		const out = [];
+		for (const chunk of s.split(/\s+>>>?\s+/)) {
+			const c = chunk.trim();
+			const m = c.match(/^(.*?\S)\s+(text=.*)$/s);
+			if (m && kindOf(m[1]) === "css") out.push(m[1], m[2]); else out.push(c);
+		}
+		return out;
+	}
+
+	function resolve(parts) {
+		let scopes = [document];
+		for (const p of parts) {
+			const k = kindOf(p);
+			const found = new Set();
+			for (const sc of scopes) {
+				const r = k === "xpath" ? byXPath(p, sc) : k === "text" ? byText(p.slice(5), sc) : byCSS(p, sc);
+				if (r.error) return r;
+				for (const h of r.hits) found.add(h);
+			}
+			scopes = [...found];
+			if (!scopes.length) break;
+		}
+		return { hits: scopes };
+	}
+	window.__btSplit = split;
+	window.__btResolve = resolve;
+
+	const res = resolve(kind === "chain" ? split(sel) : [sel.trim()]);
 	if (res.error) return { error: res.error };
 
 	const hits = res.hits;
@@ -221,7 +267,8 @@ const findScript = `(function(sel, kind, want){
 	// caller can say whose element actually receives it.
 	let covered = "";
 	if (vis && x > 0 && y > 0 && x < innerWidth && y < innerHeight) {
-		const top = document.elementFromPoint(x, y);
+		// Asked at document level, a point inside a shadow root lands on its host.
+		const top = el.getRootNode().elementFromPoint(x, y);
 		if (top && top !== el && !el.contains(top) && !top.contains(el)) {
 			covered = top.tagName.toLowerCase() +
 				(top.id ? "#" + top.id : "") +
@@ -253,7 +300,7 @@ const diagnoseScript = `(function(sel, kind){
 		if (r.width > 0 && r.height > 0) {
 			const cx = Math.min(Math.max(r.left + r.width / 2, 1), innerWidth - 1);
 			const cy = Math.min(Math.max(r.top + r.height / 2, 1), innerHeight - 1);
-			const top = document.elementFromPoint(cx, cy);
+			const top = el.getRootNode().elementFromPoint(cx, cy);
 			if (top && top !== el && !el.contains(top) && !top.contains(el)) {
 				cover = top.tagName.toLowerCase() +
 					(top.id ? "#" + top.id : "") +
@@ -261,6 +308,17 @@ const diagnoseScript = `(function(sel, kind){
 			}
 		}
 		return { ...where, found: true, reasons, cover, tag: el.tagName.toLowerCase() };
+	}
+
+	if (kind === "chain" && window.__btResolve) {
+		const parts = window.__btSplit(sel);
+		for (let i = parts.length - 1; i > 0; i--) {
+			const r = window.__btResolve(parts.slice(0, i));
+			if (r.hits && r.hits.length) {
+				return { ...where, found: false, closest: parts.slice(0, i).join(" >> "), closestCount: r.hits.length };
+			}
+		}
+		return { ...where, found: false };
 	}
 
 	if (kind === "css") {

@@ -72,6 +72,14 @@ Wherever a command takes a selector, as an argument or via `--selector`/`--to`, 
 
 `text=` compares case-insensitively after collapsing whitespace. An exact label beats a partial one, the innermost element carrying the text wins over its wrappers, and a visible match wins over a hidden one. It also reads `value` and `placeholder`, so it addresses `<input type="button" value="Install">`, which XPath's `normalize-space()` never matches. On a page that ships in several languages the label changes with the locale; a CSS selector holds up better there.
 
+`>>` chains selectors of any kind: each part is looked up inside every match of the part before it, shadow root included. `>>>` means the same, and `css text=Label` is short for `css >> text=Label`:
+
+```bash
+./scripts/browser-tools mouse click ".toolbar >> text=Save"
+./scripts/browser-tools mouse click "#comment-12 text=Edit"
+./scripts/browser-tools element "my-player >>> .controls button" --attr aria-label
+```
+
 A CSS selector is tried on the document first and only falls back to shadow roots when nothing matches there, so pages without web components pay nothing for it.
 
 An XPath must select element nodes. `//h1/text()` and `//a/@href` end in an error that names the cause; read attributes with `element --attr` instead.
