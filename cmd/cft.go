@@ -27,10 +27,14 @@ func CfT(ctx context.Context, args []string) {
 	channel := fs.String("channel", "stable", "channel to install: stable, beta, dev, canary")
 	check := fs.Bool("check", false, "only report whether an update is available")
 	force := fs.Bool("force", false, "reinstall even if already up to date")
+	background := fs.Bool("background", false, "")
+	_ = fs.MarkHidden("background")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: browser-tools update-cft [--channel <c>] [--check] [--force]")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Downloads or updates a Chrome for Testing build into the local cache.")
+		fmt.Fprintln(os.Stderr, "Commands using an installed build check for updates once a day in the background;")
+		fmt.Fprintf(os.Stderr, "%s=1 turns that off.\n", browser.NoUpdateCheckEnv)
 		fmt.Fprintln(os.Stderr)
 		fs.PrintDefaults()
 	}
@@ -40,71 +44,93 @@ func CfT(ctx context.Context, args []string) {
 
 	ch := strings.ToLower(*channel)
 	if !cftValidChannels[ch] {
-		fmt.Fprintf(os.Stderr, "error: unknown channel %q (stable, beta, dev, canary)\n", *channel)
-		os.Exit(1)
+		fail("unknown channel %q (stable, beta, dev, canary)", *channel)
 	}
-
-	plat, ok := browser.CfTPlatform()
-	if !ok {
-		fmt.Fprintln(os.Stderr, "error: Chrome for Testing is not available for this platform")
-		os.Exit(1)
+	if *background {
+		if err := installCfT(ctx, ch, false); err != nil {
+			browser.RetryCfTUpdateSoon(ch)
+		}
+		return
 	}
-
-	client := &http.Client{Timeout: 120 * time.Second}
-	version, url, err := cftLatest(ctx, client, ch, plat)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	dir := browser.ChromeForTestingDir(ch)
-	installed := cftInstalledVersion(dir)
-	upToDate := installed == version
 
 	if *check {
-		if upToDate {
+		plat, ok := browser.CfTPlatform()
+		if !ok {
+			fail("Chrome for Testing is not available for this platform")
+		}
+		version, _, err := cftLatest(ctx, &http.Client{Timeout: 30 * time.Second}, ch, plat)
+		if err != nil {
+			fail("%v", err)
+		}
+		installed := browser.CfTVersion(browser.ChromeForTestingDir(ch))
+		staged := browser.CfTVersion(browser.CfTStagingDir(ch))
+		switch {
+		case installed == version:
 			fmt.Printf("%s✓%s %s up to date (%s)\n", ansiGreen, ansiReset, ch, version)
-		} else if installed == "" {
+		case staged == version:
+			fmt.Printf("%s↑%s %s %s is downloaded and used from the next browser start\n", ansiYellow, ansiReset, ch, version)
+		case installed == "":
 			fmt.Printf("%s↑%s %s not installed (latest %s)\n", ansiYellow, ansiReset, ch, version)
-		} else {
+		default:
 			fmt.Printf("%s↑%s %s update available (%s → %s)\n", ansiYellow, ansiReset, ch, installed, version)
 		}
 		return
 	}
 
-	if upToDate && !*force {
-		fmt.Printf("%s✓%s %s already up to date (%s)\n", ansiGreen, ansiReset, ch, version)
-		return
+	if err := installCfT(ctx, ch, *force); err != nil {
+		fail("%v", err)
 	}
-
-	fmt.Printf("downloading Chrome for Testing %s %s (%s) …\n", ch, version, plat)
-	data, err := downloadWithProgress(ctx, client, url)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	if err := os.RemoveAll(dir); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-	if err := extractZip(data, dir); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-	if err := os.WriteFile(filepath.Join(dir, ".version"), []byte(version), 0o644); err != nil {
-		fmt.Fprintf(os.Stderr, "%s!%s could not record version: %v\n", ansiYellow, ansiReset, err)
-	}
-
-	fmt.Printf("%s✓%s installed %s %s → use --browser cft-%s\n", ansiGreen, ansiReset, ch, version, ch)
 }
 
-func cftInstalledVersion(dir string) string {
-	b, err := os.ReadFile(filepath.Join(dir, ".version"))
-	if err != nil {
-		return ""
+// installCfT downloads the latest build into the staging directory and moves
+// it into place unless a browser still runs from the current build.
+func installCfT(ctx context.Context, ch string, force bool) error {
+	plat, ok := browser.CfTPlatform()
+	if !ok {
+		return fmt.Errorf("Chrome for Testing is not available for this platform")
 	}
-	return strings.TrimSpace(string(b))
+	client := &http.Client{Timeout: 10 * time.Minute}
+	version, url, err := cftLatest(ctx, client, ch, plat)
+	if err != nil {
+		return err
+	}
+
+	dir := browser.ChromeForTestingDir(ch)
+	staging := browser.CfTStagingDir(ch)
+	if browser.CfTVersion(dir) == version && !force {
+		fmt.Printf("%s✓%s %s already up to date (%s)\n", ansiGreen, ansiReset, ch, version)
+		return nil
+	}
+
+	if browser.CfTVersion(staging) != version || force {
+		fmt.Printf("downloading Chrome for Testing %s %s (%s) …\n", ch, version, plat)
+		data, err := downloadWithProgress(ctx, client, url)
+		if err != nil {
+			return err
+		}
+		if err := os.RemoveAll(staging); err != nil {
+			return err
+		}
+		if err := extractZip(data, staging); err != nil {
+			_ = os.RemoveAll(staging)
+			return err
+		}
+		// Written last, so a staging directory with a version is always complete.
+		if err := os.WriteFile(filepath.Join(staging, ".version"), []byte(version), 0o644); err != nil {
+			return err
+		}
+	}
+
+	applied, err := browser.ApplyStagedCfT(ch)
+	if err != nil {
+		return err
+	}
+	if applied == "" {
+		fmt.Printf("%s✓%s downloaded %s %s; the browser is running, so it takes over from the next start (`browser-tools stop`)\n", ansiGreen, ansiReset, ch, version)
+		return nil
+	}
+	fmt.Printf("%s✓%s installed %s %s → use --browser cft-%s\n", ansiGreen, ansiReset, ch, version, ch)
+	return nil
 }
 
 // cftLatest resolves the latest version and chrome download URL for a channel.

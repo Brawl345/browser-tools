@@ -35,6 +35,14 @@ func IsRunning(port int) bool {
 
 // Launch starts the browser; extra is appended to its command line.
 func Launch(variant string, port int, extra ...string) error {
+	channel, isCfT := CfTChannel(variant)
+	if isCfT {
+		if v, err := ApplyStagedCfT(channel); err != nil {
+			fmt.Fprintf(os.Stderr, "could not install the downloaded Chrome for Testing update: %v\n", err)
+		} else if v != "" {
+			fmt.Fprintf(os.Stderr, "Updated Chrome for Testing to %s\n", v)
+		}
+	}
 	cfg, ok := GetConfig(variant)
 	if !ok {
 		return fmt.Errorf("unknown browser variant: %s", variant)

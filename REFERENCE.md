@@ -615,8 +615,15 @@ Options:
 ### update-cft
 
 Download or update a Chrome for Testing build into the local cache. Builds are
-stored at `~/.cache/claude-browser-tools/chrome-for-testing-binaries/<channel>/`
-and an update replaces the existing build.
+stored at `~/.cache/claude-browser-tools/chrome-for-testing-binaries/<channel>/`.
+While the browser runs from a build, a new one waits next to it and takes over
+at the next browser start.
+
+Commands that use an installed Chrome for Testing check for an update once a
+day and download it in the background. While a downloaded update waits, a
+command prints a `note:` about it at most once an hour; `browser-tools stop`
+restarts the browser with it. `BROWSER_TOOLS_NO_UPDATE_CHECK=1` turns the
+check off.
 
 ```bash
 ./scripts/browser-tools update-cft                    # stable

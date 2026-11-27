@@ -21,6 +21,9 @@ func MustSession(ctx context.Context, variant string, port int) *browser.Session
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
+	if channel, ok := browser.CfTChannel(variant); ok {
+		browser.CfTUpkeep(channel)
+	}
 	return s
 }
 

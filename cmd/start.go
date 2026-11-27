@@ -55,6 +55,9 @@ func Start(variant string, port int, args []string) {
 	if err != nil {
 		fail("%v", err)
 	}
+	if channel, ok := browser.CfTChannel(variant); ok {
+		browser.CfTUpkeep(channel)
+	}
 	if _, err := s.Targets(); err != nil {
 		fail("the browser started but does not answer on port %d: %v", port, err)
 	}
