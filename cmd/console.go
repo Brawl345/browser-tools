@@ -17,13 +17,17 @@ import (
 func Console(ctx context.Context, variant string, port int, args []string) {
 	fs := flag.NewFlagSet("console", flag.ExitOnError)
 	errorsOnly := fs.Bool("errors-only", false, "only show errors and exceptions")
+	limit := fs.Int("limit", 0, "only show the last n messages")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: browser-tools console [--errors-only]")
+		fmt.Fprintln(os.Stderr, "Usage: browser-tools console [--errors-only] [--limit <n>]")
 		fmt.Fprintln(os.Stderr)
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
 		os.Exit(1)
+	}
+	if *limit < 0 {
+		fail("--limit must be at least 1")
 	}
 
 	tabCtx := MustTab(MustSession(ctx, variant, port))
@@ -78,7 +82,12 @@ func Console(ctx context.Context, variant string, port int, args []string) {
 		return
 	}
 
-	for _, e := range entries {
+	shown := entries
+	if *limit > 0 && len(entries) > *limit {
+		shown = entries[len(entries)-*limit:]
+		fmt.Printf("(%d earlier messages skipped)\n", len(entries)-*limit)
+	}
+	for _, e := range shown {
 		fmt.Printf("[%s] %s\n", e.kind, e.text)
 	}
 }

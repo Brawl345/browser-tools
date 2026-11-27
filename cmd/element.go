@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -62,8 +63,9 @@ const buildElementInfoFn = `(el, full) => {
 func Element(ctx context.Context, variant string, port int, args []string) {
 	fs := flag.NewFlagSet("element", flag.ExitOnError)
 	attr := fs.String("attr", "", "print one value per match as plain text: an attribute name, or text / html / value")
+	limit := fs.Int("limit", 0, fmt.Sprintf("print at most this many matches (default %d, with --attr %d)", elementListCap, elementAttrCap))
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: browser-tools element [--attr <name>] <selector>")
+		fmt.Fprintln(os.Stderr, "Usage: browser-tools element [--attr <name>] [--limit <n>] <selector>")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Reads tag, text, value, attributes, box, computed style and visibility")
 		fmt.Fprintln(os.Stderr, "as JSON. With several matches it prints a short list of all of them.")
@@ -78,23 +80,26 @@ func Element(ctx context.Context, variant string, port int, args []string) {
 		os.Exit(1)
 	}
 	sel := fs.Arg(0)
+	if *limit < 0 {
+		fail("--limit must be at least 1")
+	}
 
 	s := MustSession(ctx, variant, port)
 	m := Locate(ctx, s, sel, StatePresent)
 
 	if *attr != "" {
-		printAttr(m, *attr, sel)
+		printAttr(m, *attr, sel, cmp.Or(*limit, elementAttrCap))
 		return
 	}
 
 	full := "false"
-	limit := elementListCap
+	n := cmp.Or(*limit, elementListCap)
 	if m.Count <= elementDetailCap {
 		full = "true"
-		limit = elementDetailCap
+		n = elementDetailCap
 	}
 	body := fmt.Sprintf(`const hits = window.__btHits || [];
-		return hits.slice(0, %d).map(e => (%s)(e, %s));`, limit, buildElementInfoFn, full)
+		return hits.slice(0, %d).map(e => (%s)(e, %s));`, n, buildElementInfoFn, full)
 
 	var elements []json.RawMessage
 	if err := OnHit(m.Tab, body, &elements); err != nil {
@@ -103,7 +108,7 @@ func Element(ctx context.Context, variant string, port int, args []string) {
 
 	out := map[string]any{"count": m.Count, "elements": elements}
 	if m.Count > len(elements) {
-		out["note"] = fmt.Sprintf("showing %d of %d matches; narrow the selector or use --attr to list a value for all of them", len(elements), m.Count)
+		out["note"] = fmt.Sprintf("showing %d of %d matches; narrow the selector, raise --limit, or use --attr to list one value per match", len(elements), m.Count)
 	}
 	printJSON(out)
 }
@@ -124,9 +129,9 @@ func attrBody(attr string) string {
 	}
 }
 
-func printAttr(m *Match, attr, sel string) {
+func printAttr(m *Match, attr, sel string, limit int) {
 	body := fmt.Sprintf(`const hits = window.__btHits || [];
-		return hits.slice(0, %d).map(e => %s);`, elementAttrCap, attrBody(attr))
+		return hits.slice(0, %d).map(e => %s);`, limit, attrBody(attr))
 
 	var values []string
 	if err := OnHit(m.Tab, body, &values); err != nil {
@@ -145,7 +150,7 @@ func printAttr(m *Match, attr, sel string) {
 		fail("no match for %s carries %q — `browser-tools element %s` shows what is there", sel, attr, sel)
 	}
 	if m.Count > len(values) {
-		fmt.Fprintf(os.Stderr, "note: printed %d of %d matches\n", len(values), m.Count)
+		fmt.Fprintf(os.Stderr, "note: printed %d of %d matches, raise --limit for more\n", len(values), m.Count)
 	}
 }
 

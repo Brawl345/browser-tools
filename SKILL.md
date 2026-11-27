@@ -59,9 +59,9 @@ Anywhere a selector is taken, three kinds work. Text is usually the shortest:
 
 ```bash
 ./scripts/browser-tools element "button#submit"           # JSON: count, text, value, attributes, box, style, visible
-./scripts/browser-tools element "a.download" --attr href  # one line per match: any attribute, or text / html / value
+./scripts/browser-tools element "a.download" --attr href --limit 20  # one line per match: any attribute, or text / html / value
 ./scripts/browser-tools html --filter "data-id=\"\d+\"" --lines 10
-./scripts/browser-tools console --errors-only             # includes messages logged before it ran
+./scripts/browser-tools console --errors-only --limit 20  # last 20, includes messages logged before it ran
 ./scripts/browser-tools cookie                            # --all for every origin
 ./scripts/browser-tools dom-storage                       # --local / --session
 ```

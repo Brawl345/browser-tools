@@ -369,12 +369,13 @@ The output always has the shape `{count, elements}`. `count` is the total number
 
 On a single match the entry carries `tag`, `id`, `class`, `text` (max 200 chars), `value` (for form controls, read off the live property), `checked`, `disabled`, `attributes`, `box`, `visible`, `style`, `html` (outerHTML, max 500 chars) and `parents` (ancestor hierarchy). Empty fields are left out.
 
-On several matches it prints up to 10 short entries with `tag`, `id`, `class`, `text`, `box` and `visible`, plus a `note` when more matched than were printed.
+On several matches it prints up to 10 (or `--limit`) short entries with `tag`, `id`, `class`, `text`, `box` and `visible`, plus a `note` when more matched than were printed.
 
 `style` holds `display`, `cursor`, `color`, `backgroundColor` and `fontSize`, plus `position`, `zIndex`, `opacity`, `visibility`, `pointerEvents` and `overflow` whenever those differ from their initial value.
 
 Options:
 - `--attr <name>`: Print one value per line as plain text, for up to 100 matches. Besides attribute names it understands `text`, `html` and `value`; for anything else the DOM property is used when the attribute is absent, so `--attr checked` and `--attr disabled` work too.
+- `--limit <n>`: Print at most n matches, the first ones in document order
 
 The command waits for the element to appear (up to `--timeout`) and reports what is on the page if it never does.
 
@@ -520,11 +521,12 @@ Get browser console messages and uncaught exceptions from the current tab, inclu
 
 ```bash
 ./scripts/browser-tools console
-./scripts/browser-tools console --errors-only
+./scripts/browser-tools console --errors-only --limit 20
 ```
 
 Options:
 - `--errors-only`: Only show errors and exceptions
+- `--limit <n>`: Only show the last n messages
 
 ### network
 
