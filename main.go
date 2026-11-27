@@ -116,7 +116,7 @@ func usage() {
 		{"pdf [options]", "Save the current page as a PDF"},
 		{"pick-element <message>", "Interactively pick a DOM element"},
 		{"reload [--hard]", "Reload the current tab"},
-		{"resize [options] <w> <h>", "Emulate a viewport size or phone, held until --reset"},
+		{"resize [options] [<w> <h>]", "Emulate a viewport, phone or color scheme, held until --reset"},
 		{"screenshot [--selector <sel>]", "Take a screenshot"},
 		{"scroll [<sel>|--x|--y|--top|--bottom]", "Scroll to an element or X/Y position"},
 		{"select [options] <sel> <val>", "Select a dropdown option"},

@@ -23,6 +23,21 @@ func EmulationPIDFile(port int, id TargetID) string {
 	return filepath.Join(cacheBase(), "emulation", fmt.Sprintf("%d-%s.pid", port, id))
 }
 
+func emulationSpecFile(port int, id TargetID) string {
+	return strings.TrimSuffix(EmulationPIDFile(port, id), ".pid") + ".json"
+}
+
+// CurrentEmulation returns the spec the running holder of a tab applies, or
+// an empty string when the tab is not emulated.
+func CurrentEmulation(port int, id TargetID) string {
+	pid := ReadPID(EmulationPIDFile(port, id))
+	if pid == 0 || !processAlive(pid) {
+		return ""
+	}
+	data, _ := os.ReadFile(emulationSpecFile(port, id))
+	return string(data)
+}
+
 // ReadPID returns the PID stored in a holder's PID file, or 0.
 func ReadPID(path string) int {
 	b, err := os.ReadFile(path)
@@ -87,6 +102,7 @@ func StartEmulation(variant string, port int, id TargetID, spec string) error {
 	line = strings.TrimSpace(line)
 	if line == "ok" {
 		_ = c.Process.Release()
+		_ = os.WriteFile(emulationSpecFile(port, id), []byte(spec), 0o644)
 		return nil
 	}
 	_ = c.Process.Kill()

@@ -34,7 +34,7 @@ BROWSER_TOOLS_BROWSER=chrome-canary ./scripts/browser-tools start
 
 ```bash
 ./scripts/browser-tools start --fake-media
-./scripts/browser-tools start --arg=--force-dark-mode
+./scripts/browser-tools start --arg=--disable-backgrounding-occluded-windows
 ```
 
 For changing the UI language use `--arg=--lang=de` on Linux and Windows. On macOS, use `AppleLanguages` passed as two arguments: `--arg=-AppleLanguages --arg='(de)'`.
@@ -256,10 +256,11 @@ Options:
 
 ### resize
 
-Emulate a viewport size, or a phone, for the current tab:
+Emulate a viewport size, a phone, or a dark or light color scheme for the current tab:
 
 ```bash
 ./scripts/browser-tools resize 1280 720
+./scripts/browser-tools resize --color-scheme dark   # prefers-color-scheme, keeps the size
 # Phone: mobile viewport, touch input, 3x pixel ratio
 ./scripts/browser-tools resize --mobile --dpr 3 393 852
 ./scripts/browser-tools resize --mobile --dpr 3 --user-agent "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" 393 852
@@ -267,7 +268,7 @@ Emulate a viewport size, or a phone, for the current tab:
 ./scripts/browser-tools resize --reset
 ```
 
-The emulation stays on the tab across commands, reloads and navigations until `resize --reset`, another `resize`, or the tab closes. A background `browser-tools emulation-holder` process keeps it alive.
+The emulation stays on the tab across commands, reloads and navigations until `resize --reset` or the tab closes. A background `browser-tools emulation-holder` process keeps it alive. Another `resize` with a size replaces the viewport settings (`--mobile`, `--dpr`), while `--user-agent` and `--color-scheme` stay until a later `resize` sets them again.
 
 Width and height are in CSS pixels and must be positive integers. With `--mobile`, a page without `<meta name="viewport">` lays out at 980px wide like on a real phone, and `mouse click`/`dblclick` send touch taps.
 
@@ -275,6 +276,7 @@ Options:
 - `--mobile`: Mobile viewport and touch input (`navigator.maxTouchPoints`, `(pointer: coarse)`, taps)
 - `--dpr <n>`: Device pixel ratio (default: the screen's own)
 - `--user-agent <ua>`: User agent string; requests use it after the next reload
+- `--color-scheme dark|light`: What `prefers-color-scheme` media queries see; works without a size
 - `--reset`: Clear the emulation and restore the default size
 
 ### cookie

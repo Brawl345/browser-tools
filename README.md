@@ -31,7 +31,7 @@ A coding agent skill for browser automation using Go and the Chrome DevTools Pro
 - **Screenshots**: Viewport, full-page or single-element screenshots, to `/tmp` or a path of your choice
 - **PDF Export**: Save the current page as a PDF with format, margin, and header/footer options
 - **Scroll**: Scroll to an element, an X/Y position, or the top/bottom of the page
-- **Resize**: Emulate a viewport size or a touch phone until reset
+- **Resize**: Emulate a viewport size, a touch phone or a dark color scheme until reset
 - **Cookie Management**: List and clear cookies per tab or all origins
 - **DOM Storage**: Inspect and clear localStorage / sessionStorage
 - **Clear Browser Data**: Wipe cache, cookies, IndexedDB, service workers, and more

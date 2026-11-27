@@ -50,6 +50,7 @@ Anywhere a selector is taken, three kinds work. Text is usually the shortest:
 ./scripts/browser-tools reload                           # --hard bypasses the cache
 ./scripts/browser-tools scroll "#section"                # or --x/--y/--top/--bottom
 ./scripts/browser-tools resize 1280 720                   # stays until --reset; --mobile --dpr 3 393 852 for a phone
+./scripts/browser-tools resize --color-scheme dark        # dark/light mode, no restart needed
 ./scripts/browser-tools tab                               # in opening order, ▶ = current; --activate/--close/--refresh <n>
 ```
 
@@ -153,7 +154,7 @@ Commands start the browser on their own. `start` does it explicitly and can pass
 
 ```bash
 ./scripts/browser-tools start --fake-media            # fake camera + mic, permission granted without prompt
-./scripts/browser-tools start --arg=--force-dark-mode # any Chrome flag, repeatable
+./scripts/browser-tools start --arg=--disable-backgrounding-occluded-windows # any Chrome flag, repeatable
 ./scripts/browser-tools start --arg=-AppleLanguages --arg='(de)'   # UI language on macOS
 ```
 

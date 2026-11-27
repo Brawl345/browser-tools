@@ -19,56 +19,78 @@ import (
 )
 
 type emulationSpec struct {
-	Width     int64   `json:"w"`
-	Height    int64   `json:"h"`
-	Scale     float64 `json:"dpr,omitempty"`
-	Mobile    bool    `json:"mobile,omitempty"`
-	UserAgent string  `json:"ua,omitempty"`
+	Width       int64   `json:"w,omitempty"`
+	Height      int64   `json:"h,omitempty"`
+	Scale       float64 `json:"dpr,omitempty"`
+	Mobile      bool    `json:"mobile,omitempty"`
+	UserAgent   string  `json:"ua,omitempty"`
+	ColorScheme string  `json:"scheme,omitempty"`
 }
 
 func (e emulationSpec) apply() chromedp.Action {
-	metrics := emulation.SetDeviceMetricsOverride(e.Width, e.Height, e.Scale, e.Mobile).
-		WithScreenWidth(e.Width).WithScreenHeight(e.Height)
-	if e.Mobile {
-		orientation := &emulation.ScreenOrientation{Type: emulation.OrientationTypePortraitPrimary}
-		if e.Width > e.Height {
-			orientation = &emulation.ScreenOrientation{Type: emulation.OrientationTypeLandscapePrimary, Angle: 90}
+	var tasks chromedp.Tasks
+	if e.Width > 0 {
+		metrics := emulation.SetDeviceMetricsOverride(e.Width, e.Height, e.Scale, e.Mobile).
+			WithScreenWidth(e.Width).WithScreenHeight(e.Height)
+		if e.Mobile {
+			orientation := &emulation.ScreenOrientation{Type: emulation.OrientationTypePortraitPrimary}
+			if e.Width > e.Height {
+				orientation = &emulation.ScreenOrientation{Type: emulation.OrientationTypeLandscapePrimary, Angle: 90}
+			}
+			metrics = metrics.WithScreenOrientation(orientation)
 		}
-		metrics = metrics.WithScreenOrientation(orientation)
+		tasks = append(tasks, metrics)
 	}
-	tasks := chromedp.Tasks{metrics}
 	if e.Mobile {
 		tasks = append(tasks, emulation.SetTouchEmulationEnabled(true).WithMaxTouchPoints(5))
 	}
 	if e.UserAgent != "" {
 		tasks = append(tasks, emulation.SetUserAgentOverride(e.UserAgent))
 	}
+	if e.ColorScheme != "" {
+		tasks = append(tasks, emulation.SetEmulatedMedia().WithFeatures([]*emulation.MediaFeature{
+			{Name: "prefers-color-scheme", Value: e.ColorScheme},
+		}))
+	}
 	return tasks
 }
 
 func (e emulationSpec) clear() chromedp.Action {
-	tasks := chromedp.Tasks{emulation.ClearDeviceMetricsOverride()}
+	var tasks chromedp.Tasks
+	if e.Width > 0 {
+		tasks = append(tasks, emulation.ClearDeviceMetricsOverride())
+	}
 	if e.Mobile {
 		tasks = append(tasks, emulation.SetTouchEmulationEnabled(false))
 	}
 	if e.UserAgent != "" {
 		tasks = append(tasks, emulation.SetUserAgentOverride(""))
 	}
+	if e.ColorScheme != "" {
+		tasks = append(tasks, emulation.SetEmulatedMedia())
+	}
 	return tasks
 }
 
 func (e emulationSpec) String() string {
-	s := fmt.Sprintf("%dx%d", e.Width, e.Height)
-	if e.Scale > 0 {
-		s += fmt.Sprintf(" @%gx", e.Scale)
+	var parts []string
+	if e.Width > 0 {
+		s := fmt.Sprintf("%dx%d", e.Width, e.Height)
+		if e.Scale > 0 {
+			s += fmt.Sprintf(" @%gx", e.Scale)
+		}
+		parts = append(parts, s)
 	}
 	if e.Mobile {
-		s += ", mobile with touch"
+		parts = append(parts, "mobile with touch")
 	}
 	if e.UserAgent != "" {
-		s += ", custom user agent"
+		parts = append(parts, "custom user agent")
 	}
-	return s
+	if e.ColorScheme != "" {
+		parts = append(parts, e.ColorScheme+" color scheme")
+	}
+	return strings.Join(parts, ", ")
 }
 
 func Resize(ctx context.Context, variant string, port int, args []string) {
@@ -77,9 +99,12 @@ func Resize(ctx context.Context, variant string, port int, args []string) {
 	scale := fs.Float64("dpr", 0, "device pixel ratio (default: the screen's own)")
 	mobile := fs.Bool("mobile", false, "emulate a phone: mobile viewport and touch input, mouse clicks become taps")
 	userAgent := fs.String("user-agent", "", "user agent string (takes effect for requests after the next reload)")
+	scheme := fs.String("color-scheme", "", "emulate prefers-color-scheme: dark or light")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: browser-tools resize [--dpr <n>] [--mobile] [--user-agent <ua>] <width> <height>")
+		fmt.Fprintln(os.Stderr, "Usage: browser-tools resize [--dpr <n>] [--mobile] [--user-agent <ua>] [--color-scheme dark|light] [<width> <height>]")
 		fmt.Fprintln(os.Stderr, "       browser-tools resize --reset")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "A new size replaces the viewport; user agent and color scheme stay until changed or reset.")
 		fmt.Fprintln(os.Stderr)
 		fs.PrintDefaults()
 	}
@@ -87,35 +112,60 @@ func Resize(ctx context.Context, variant string, port int, args []string) {
 		os.Exit(1)
 	}
 
-	var spec emulationSpec
+	var width, height int64
 	if !*reset {
-		if fs.NArg() < 2 {
+		switch fs.NArg() {
+		case 0:
+			if *userAgent == "" && *scheme == "" {
+				fs.Usage()
+				os.Exit(1)
+			}
+		case 2:
+			var err error
+			if width, err = strconv.ParseInt(fs.Arg(0), 10, 64); err != nil || width <= 0 {
+				fail("invalid width %q", fs.Arg(0))
+			}
+			if height, err = strconv.ParseInt(fs.Arg(1), 10, 64); err != nil || height <= 0 {
+				fail("invalid height %q", fs.Arg(1))
+			}
+		default:
 			fs.Usage()
 			os.Exit(1)
-		}
-		width, err := strconv.ParseInt(fs.Arg(0), 10, 64)
-		if err != nil || width <= 0 {
-			fail("invalid width %q", fs.Arg(0))
-		}
-		height, err := strconv.ParseInt(fs.Arg(1), 10, 64)
-		if err != nil || height <= 0 {
-			fail("invalid height %q", fs.Arg(1))
 		}
 		if *scale < 0 {
 			fail("invalid --dpr %g", *scale)
 		}
-		spec = emulationSpec{Width: width, Height: height, Scale: *scale, Mobile: *mobile, UserAgent: *userAgent}
+		if *scheme != "" && *scheme != "dark" && *scheme != "light" {
+			fail("invalid --color-scheme %q (use dark or light)", *scheme)
+		}
+		if width == 0 && (*mobile || *scale > 0) {
+			fail("--mobile and --dpr need a width and height")
+		}
 	}
 
 	tabCtx := MustTab(MustSession(ctx, variant, port))
 	id := chromedp.FromContext(tabCtx).Target.TargetID
 
+	var spec emulationSpec
+	if prev := browser.CurrentEmulation(port, id); prev != "" {
+		_ = json.Unmarshal([]byte(prev), &spec)
+	}
+	if width > 0 {
+		spec.Width, spec.Height, spec.Scale, spec.Mobile = width, height, *scale, *mobile
+	}
+	if *userAgent != "" {
+		spec.UserAgent = *userAgent
+	}
+	if *scheme != "" {
+		spec.ColorScheme = *scheme
+	}
+
 	stopped := browser.StopEmulation(port, id)
 	if *reset {
 		if stopped {
-			fmt.Printf("%s✓%s reset viewport to default\n", ansiGreen, ansiReset)
+			fmt.Printf("%s✓%s emulation cleared\n", ansiGreen, ansiReset)
 		} else {
-			fmt.Printf("%s✓%s viewport was not emulated\n", ansiGreen, ansiReset)
+			fmt.Printf("%s✓%s nothing was emulated\n", ansiGreen, ansiReset)
 		}
 		return
 	}
