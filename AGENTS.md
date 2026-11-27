@@ -22,7 +22,11 @@ On macOS Chrome launches with `--no-startup-window` and gets its first window ov
 
 ```bash
 go build -o scripts/browser-tools .
+go test -shuffle=on ./...   # e2e tests start their own Chrome on port 9444 with a temp profile
+go test -short ./...        # unit tests only, no browser
 ```
+
+The e2e tests run the built binary and check its output, so they need no change when the internals do. Every test starts with `reset` or `open` and must pass alone with `-run`.
 
 ## References
 

@@ -1,0 +1,14 @@
+<!doctype html>
+<title>Products</title>
+<h1 class="title">Products</h1>
+<ul id="products"></ul>
+<a id="more" href="/blank.html" title="More products">More</a>
+<script>
+  const ul = document.getElementById("products");
+  for (let i = 1; i <= 12; i++) {
+    const li = document.createElement("li");
+    li.dataset.id = String(i);
+    li.textContent = "Item " + i;
+    ul.append(li);
+  }
+</script>
