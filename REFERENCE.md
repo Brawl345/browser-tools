@@ -105,7 +105,7 @@ For a CSS selector that matches nothing, the report names the longest prefix tha
 
 ## Settling
 
-`navigate` and `reload` return once the page has fired its load event and traffic has died down; pages that poll forever are not waited on beyond a short cap. The acting commands (`mouse`, `fill`, `check`, `select`, `key`, `scroll`) wait for the page to go quiet after they act. Scripting `sleep` around these commands is never needed.
+`navigate` and `reload` return once the page has fired its load event and traffic has died down; pages that poll forever are not waited on beyond a short cap. The acting commands (`mouse`, `fill`, `check`, `select`, `key`, `scroll`) wait for the page to go quiet after they act. All of them, and `screenshot` too, then wait up to 2s for running CSS animations and transitions to end and for the images in view to load. Animations that loop forever, like spinners, are not waited for. Scripting `sleep` around these commands is never needed.
 
 ## Dialogs
 
@@ -369,7 +369,7 @@ The command waits for the element to appear (up to `--timeout`) and reports what
 
 ### wait
 
-Block until an element reaches a state, then exit. The acting commands already wait by themselves, so this covers the states they do not: something disappearing, or the page simply going quiet. Without a selector it waits for the load event and for network traffic to stop:
+Block until an element reaches a state, then exit. The acting commands already wait by themselves, so this covers the states they do not: something disappearing, or the page simply going quiet. Without a selector it waits for the load event, for network traffic to stop and for animations to end:
 
 ```bash
 ./scripts/browser-tools wait "#results"

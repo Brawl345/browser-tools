@@ -87,7 +87,12 @@ func printHints(js string) {
 	for _, u := range uses {
 		fmt.Fprintf(os.Stderr, "hint: `browser-tools %s` does this without a script\n", u)
 	}
+	if sleepPattern.MatchString(js) {
+		fmt.Fprintln(os.Stderr, "hint: acting commands, `screenshot` and `wait` already wait for animations to end")
+	}
 }
+
+var sleepPattern = regexp.MustCompile(`setTimeout`)
 
 func loadJS(args []string) (string, error) {
 	if len(args) == 0 || args[0] == "-" {

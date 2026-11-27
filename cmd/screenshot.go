@@ -39,6 +39,7 @@ func Screenshot(ctx context.Context, variant string, port int, args []string) {
 	case *selector != "":
 		m := Locate(ctx, s, *selector, StateVisible)
 		tabCtx = m.Tab
+		WaitStill(tabCtx)
 		var clip page.Viewport
 		if err := OnHit(tabCtx, `const r = el.getBoundingClientRect();
 			return { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: r.height, scale: 1 };`, &clip); err != nil {
@@ -54,9 +55,11 @@ func Screenshot(ctx context.Context, variant string, port int, args []string) {
 		})
 	case *fullPage:
 		tabCtx = MustTab(s)
+		WaitStill(tabCtx)
 		action = chromedp.FullScreenshot(&buf, 100)
 	default:
 		tabCtx = MustTab(s)
+		WaitStill(tabCtx)
 		action = chromedp.CaptureScreenshot(&buf)
 	}
 

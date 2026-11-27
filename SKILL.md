@@ -12,7 +12,7 @@ A compiled Go binary that drives Chrome over the DevTools Protocol. Run it with 
 {basedir}/scripts/browser-tools <command> [options]
 ```
 
-Every command waits by itself. It polls until the element is there and the page has gone quiet, so adding `sleep` only makes things slower. Commands act on the current tab, the one last opened, navigated or activated. A popup, a link opening a new tab, or an extension dialog becomes current by itself, even mid-wait, and closing it returns to the tab before. When a selector does not resolve, the error names the tab and says whether the element was missing, invisible or covered.
+Every command waits by itself. It polls until the element is there, the page has gone quiet and animations have ended, so adding `sleep` only makes things slower. Commands act on the current tab, the one last opened, navigated or activated. A popup, a link opening a new tab, or an extension dialog becomes current by itself, even mid-wait, and closing it returns to the tab before. When a selector does not resolve, the error names the tab and says whether the element was missing, invisible or covered.
 
 ## Selectors
 

@@ -77,7 +77,51 @@ func (w *watcher) done() bool {
 // kicks off is already under way when the wait starts and looks like silence.
 func SettleAfter(tabCtx context.Context) func() {
 	w := watch(tabCtx)
-	return func() { settleWith(w, settleAction) }
+	return func() {
+		settleWith(w, settleAction)
+		WaitStill(tabCtx)
+	}
+}
+
+// stillWait caps the wait for animations, so a long-running one does not cost
+// every command its full length.
+const stillWait = 2 * time.Second
+
+// motionScript reports what still changes on screen: finite animations and
+// transitions that run, and images in view that have not loaded. Animations
+// that loop forever, like spinners, are left out. The timeline time tells a
+// frozen page, whose animations never end, from a moving one.
+const motionScript = `(() => {
+	let n = 0;
+	for (const a of document.getAnimations()) {
+		if (a.playState !== "running" || !a.effect) continue;
+		if (isFinite(a.effect.getComputedTiming().endTime)) n++;
+	}
+	for (const img of document.images) {
+		if (img.complete) continue;
+		const r = img.getBoundingClientRect();
+		if (r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth) n++;
+	}
+	return { n, t: document.timeline.currentTime || 0 };
+})()`
+
+// WaitStill blocks until animations have finished and the images in view have
+// loaded. A page whose window is covered stops its animation clock, which is
+// not waited for.
+func WaitStill(tabCtx context.Context) {
+	deadline := time.Now().Add(stillWait)
+	lastT := -1.0
+	for time.Now().Before(deadline) {
+		var m struct {
+			N int     `json:"n"`
+			T float64 `json:"t"`
+		}
+		if runWithin(tabCtx, time.Until(deadline), chromedp.Evaluate(motionScript, &m)) != nil || m.N == 0 || m.T == lastT {
+			return
+		}
+		lastT = m.T
+		time.Sleep(60 * time.Millisecond)
+	}
 }
 
 func settleWith(w *watcher, max time.Duration) {
@@ -103,6 +147,7 @@ func WaitLoaded(ctx context.Context, tabCtx context.Context, w *watcher) bool {
 			// Pages that poll in the background never fall silent, so the quiet
 			// period after the load event is capped rather than required.
 			settleWith(w, settleLoad)
+			WaitStill(tabCtx)
 			return true
 		}
 		time.Sleep(40 * time.Millisecond)
