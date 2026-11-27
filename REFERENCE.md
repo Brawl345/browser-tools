@@ -162,18 +162,18 @@ NOTE: Always prefer the specialised commands. When a script does something a com
 
 Execute JavaScript on the current page. Accepts inline code, a path to a `.js` file, or `-` to read from STDIN.
 
-**IMPORTANT:** Top-level `return` statements cause a `SyntaxError`. Always wrap multi-statement scripts in an IIFE: `(function() { ...; return result; })()`
+The script runs like a DevTools console line: top-level `await` works, and so does a top-level `return`. Without `return`, the value of the last expression is the result. A returned promise is awaited.
+
+A string prints as is, other values as compact JSON, so `JSON.stringify` is not needed. A DOM node prints as its short description (`h1.title`); values JSON cannot hold (`Map`, `window`) print their description too.
 
 ```bash
 ./scripts/browser-tools evaluate-js "document.title"
 ./scripts/browser-tools evaluate-js "document.querySelectorAll('a').length"
 # Multi-line via heredoc
 ./scripts/browser-tools evaluate-js - <<'EOF'
-(function() {
-  const title = document.querySelector('h1').textContent;
-  const links = Array.from(document.querySelectorAll('a')).map(a => a.href);
-  return {title, linkCount: links.length};
-})()
+const title = document.querySelector('h1').textContent;
+const res = await fetch('/api/items');
+return {title, items: (await res.json()).length};
 EOF
 # From a file
 ./scripts/browser-tools evaluate-js path/to/script.js

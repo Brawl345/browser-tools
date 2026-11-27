@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
@@ -42,7 +44,7 @@ func EvaluateJS(ctx context.Context, variant string, port int, args []string) {
 		fmt.Fprintln(os.Stderr, "Usage: browser-tools evaluate-js [JAVASCRIPT]")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "JAVASCRIPT is inline code, a path to a .js file, or '-' to read from stdin.")
-		fmt.Fprintln(os.Stderr, "A top-level return is a syntax error — wrap statements in (function(){ … })().")
+		fmt.Fprintln(os.Stderr, "Top-level await and return work. A string prints as is, anything else as JSON.")
 	}
 	if err := fs.Parse(args); err != nil {
 		os.Exit(1)
@@ -55,23 +57,93 @@ func EvaluateJS(ctx context.Context, variant string, port int, args []string) {
 
 	tabCtx := MustTab(MustSession(ctx, variant, port))
 
-	var result []byte
-	awaitPromise := func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
-		return p.WithAwaitPromise(true)
-	}
-	if err := chromedp.Run(tabCtx, chromedp.Evaluate(jsCode, &result, awaitPromise)); err != nil {
-		switch err {
-		case chromedp.ErrJSUndefined, chromedp.ErrJSNull:
-		default:
-			fmt.Fprintf(os.Stderr, "evaluate error: %v\n", err)
-			os.Exit(1)
+	var out string
+	var exc *runtime.ExceptionDetails
+	err = chromedp.Run(tabCtx, chromedp.ActionFunc(func(ctx context.Context) error {
+		var err error
+		out, exc, err = evaluate(ctx, jsCode, true)
+		if err == nil && exc != nil && isIllegalReturn(exc) {
+			// REPL mode does not await the promise an async wrapper returns.
+			out, exc, err = evaluate(ctx, "(async () => {\n"+jsCode+"\n})()", false)
 		}
+		return err
+	}))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "evaluate error: %v\n", explainTabError(err))
+		os.Exit(1)
+	}
+	if exc != nil {
+		fmt.Fprintf(os.Stderr, "evaluate error: %s\n", exceptionText(exc))
+		os.Exit(1)
 	}
 
-	if len(result) > 0 {
-		fmt.Println(string(result))
+	if out != "" {
+		fmt.Println(out)
 	}
 	printHints(jsCode)
+}
+
+func evaluate(ctx context.Context, js string, repl bool) (string, *runtime.ExceptionDetails, error) {
+	res, exc, err := runtime.Evaluate(js).
+		WithReplMode(repl).
+		WithAwaitPromise(true).
+		Do(ctx)
+	if err != nil || exc != nil {
+		return "", exc, err
+	}
+	if res.Subtype == runtime.SubtypePromise {
+		res, exc, err = runtime.AwaitPromise(res.ObjectID).Do(ctx)
+		if err != nil || exc != nil {
+			return "", exc, err
+		}
+	}
+	if res.Type != runtime.TypeObject || res.ObjectID == "" || res.Subtype == runtime.SubtypeNode {
+		return formatResult(res), nil, nil
+	}
+	val, vexc, verr := runtime.CallFunctionOn(`function() { return this; }`).
+		WithObjectID(res.ObjectID).
+		WithReturnByValue(true).
+		Do(ctx)
+	if verr != nil || vexc != nil || (string(val.Value) == "{}" && res.ClassName != "Object") {
+		return res.Description, nil, nil
+	}
+	return formatResult(val), nil, nil
+}
+
+func isIllegalReturn(exc *runtime.ExceptionDetails) bool {
+	return strings.Contains(exceptionText(exc), "Illegal return statement")
+}
+
+func exceptionText(exc *runtime.ExceptionDetails) string {
+	if exc.Exception != nil && exc.Exception.Description != "" {
+		return exc.Exception.Description
+	}
+	if exc.Exception != nil && len(exc.Exception.Value) > 0 {
+		return string(exc.Exception.Value)
+	}
+	return exc.Text
+}
+
+func formatResult(res *runtime.RemoteObject) string {
+	if res == nil {
+		return ""
+	}
+	switch res.Type {
+	case runtime.TypeUndefined:
+		return ""
+	case runtime.TypeString:
+		var s string
+		if json.Unmarshal(res.Value, &s) == nil {
+			return s
+		}
+	}
+	if len(res.Value) > 0 {
+		return string(res.Value)
+	}
+	if res.UnserializableValue != "" {
+		return string(res.UnserializableValue)
+	}
+	return res.Description
 }
 
 func printHints(js string) {

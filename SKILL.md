@@ -143,11 +143,12 @@ To work on a popup or options page, open it as a normal tab with `navigate chrom
 ./scripts/browser-tools evaluate-js "document.querySelectorAll('a').length"
 ./scripts/browser-tools evaluate-js path/to/script.js
 ./scripts/browser-tools evaluate-js - <<'EOF'
-(function() { return [...document.querySelectorAll('.item')].map(e => e.dataset.id); })()
+const r = await fetch('/api/items');
+return (await r.json()).map(i => i.id);
 EOF
 ```
 
-A top-level `return` is a syntax error, so wrap statements in `(function(){ … })()`.
+Top-level `await` and `return` work. Strings print as is, objects and arrays as JSON, so skip `JSON.stringify`.
 
 ## Launch flags
 
