@@ -24,6 +24,10 @@ const (
 // pollInterval is how often the page is asked again while waiting.
 const pollInterval = 120 * time.Millisecond
 
+// lastLookGrace is the least time a poll gets, even right at the deadline. It
+// may run past the deadline that way, which still lies before the watchdog.
+const lastLookGrace = 300 * time.Millisecond
+
 // retargetInterval is how often the active tab is looked up again during a
 // wait, so a dialog opening in a new tab is picked up mid-wait.
 const retargetInterval = 400 * time.Millisecond
@@ -355,7 +359,7 @@ func TryLocate(ctx context.Context, s *browser.Session, sel, want string) (*Matc
 		}
 
 		var raw []byte
-		err := runWithin(tabCtx, time.Until(deadline), chromedp.Evaluate(script, &raw))
+		err := runWithin(tabCtx, max(time.Until(deadline), lastLookGrace), chromedp.Evaluate(script, &raw))
 		if err != nil {
 			lastErr = err
 			// The tab may have gone away under us, so look again at which one
