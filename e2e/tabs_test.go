@@ -55,6 +55,13 @@ func TestTabClosedByItsOwnClick(t *testing.T) {
 	}
 }
 
+func TestClickOnATabThatClosesBeforeTheRelease(t *testing.T) {
+	open(t, "/tabs.html")
+	ok(t, "mouse", "click", "#tab")
+	contains(t, ok(t, "mouse", "click", "#press-close"), "the tab closed itself")
+	equal(t, "pathname after the tab closed itself", js(t, "location.pathname"), "/tabs.html")
+}
+
 func TestTabActivateSticks(t *testing.T) {
 	open(t, "/list.html")
 	ok(t, "navigate", "--new-tab", pageURL("/blank.html"))

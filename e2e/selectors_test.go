@@ -49,6 +49,8 @@ func TestXPathSelectors(t *testing.T) {
 
 func TestHiddenElementReport(t *testing.T) {
 	open(t, "/selectors.html")
+	// The real mouse pointer resting over the test window would hover a row.
+	ok(t, "mouse", "hover", "h1")
 	r := fails(t, "--timeout", "2s", "mouse", "click", "#delete")
 	contains(t, r,
 		"#delete matches 1 element(s) but none is visible",

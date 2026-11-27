@@ -6,11 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"time"
 
 	"browser-tools/browser"
 
+	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/input"
+	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 )
 
@@ -44,6 +47,8 @@ func MustTab(s *browser.Session) context.Context {
 // when the page closes its own tab while a command is still working on it.
 var ErrTabStalled = errors.New("the tab stopped answering (it may have been closed)")
 
+var ErrTabClosed = errors.New("the tab was closed")
+
 // tabPatience bounds a single round trip to a tab. Contexts here carry no
 // cancellation on purpose - cancelling one closes the user's tab - so the bound
 // has to live outside the context.
@@ -53,6 +58,8 @@ const tabPatience = 3 * time.Second
 // happened to the tab.
 func explainTabError(err error) string {
 	switch {
+	case errors.Is(err, ErrTabClosed):
+		return "the tab was closed"
 	case errors.Is(err, ErrTabStalled):
 		return "the tab stopped answering: a script is keeping it busy, or it was closed"
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
@@ -80,7 +87,33 @@ func runWithin(tabCtx context.Context, d time.Duration, actions ...chromedp.Acti
 	case err := <-errc:
 		return err
 	case <-time.After(d):
+		if tabGone(tabCtx) {
+			return ErrTabClosed
+		}
 		return ErrTabStalled
+	}
+}
+
+func tabGone(tabCtx context.Context) bool {
+	c := chromedp.FromContext(tabCtx)
+	if c == nil || c.Browser == nil || c.Target == nil {
+		return false
+	}
+	id := c.Target.TargetID
+	gone := make(chan bool, 1)
+	go func() {
+		all, err := target.GetTargets().Do(cdp.WithExecutor(context.Background(), c.Browser))
+		if err != nil {
+			gone <- false
+			return
+		}
+		gone <- !slices.ContainsFunc(all, func(t *target.Info) bool { return t.TargetID == id })
+	}()
+	select {
+	case g := <-gone:
+		return g
+	case <-time.After(time.Second):
+		return false
 	}
 }
 

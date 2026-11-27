@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -53,7 +54,11 @@ func Mouse(ctx context.Context, variant string, port int, args []string) {
 	} else {
 		err = mouseNative(ctx, s, m, action, *to)
 	}
-	if err != nil {
+	switch {
+	case errors.Is(err, ErrTabClosed) && action != "drag":
+		fmt.Printf("%s✓%s %s: %s%s (the tab closed itself)\n", ansiGreen, ansiReset, action, sel, pointerNote(m))
+		return
+	case err != nil:
 		fail("%v", err)
 	}
 

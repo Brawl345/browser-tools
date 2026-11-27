@@ -79,6 +79,9 @@ func Launch(variant string, port int, extra ...string) error {
 		// Chrome activates itself when it opens its startup window, but not for a
 		// window opened over CDP.
 		args = append(args, "--no-startup-window")
+	} else {
+		// Without it Chrome quits with its last window, as macOS Chrome does not.
+		args = append(args, "--keep-alive-for-test")
 	}
 	args = append(args, extra...)
 
