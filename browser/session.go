@@ -157,6 +157,10 @@ func Open(ctx context.Context, variant string, port int) (*Session, error) {
 	if err := EnsureRunning(variant, port); err != nil {
 		return nil, err
 	}
+	if DialogAnswer != "" {
+		EnsureDialogKeeper(variant, port)
+		ReportKeptDialogs(port)
+	}
 	// Cancellation is cut off here: chromedp closes the target of every context
 	// that ends, and with a RemoteAllocator that includes tabs attached through
 	// WithTargetID. A deadline reaching a tab context would close the user's tab.
@@ -184,6 +188,9 @@ func (s *Session) Tab(id TargetID) context.Context {
 		return ctx
 	}
 	ctx := AttachTab(s.brCtx, id)
+	if DialogAnswer != "" {
+		answerDialogs(ctx)
+	}
 	s.tabs[id] = ctx
 	return ctx
 }

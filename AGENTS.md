@@ -42,24 +42,22 @@ Calling the cancel function makes chromedp call `target.CloseTarget`, which clos
 
 ```go
 // ✅ correct: discard cancel
-tabCtx, _ := chromedp.NewContext(allocCtx, chromedp.WithTargetID(id), ...)
+tabCtx, _ := chromedp.NewContext(brCtx, chromedp.WithTargetID(id))
 
 // ❌ wrong: closes the tab
-tabCtx, cancel := chromedp.NewContext(allocCtx, chromedp.WithTargetID(id), ...)
+tabCtx, cancel := chromedp.NewContext(brCtx, chromedp.WithTargetID(id))
 defer cancel()
 ```
 
-This applies to every context that attaches to an existing tab: `browser.AttachTab` and everything built on it.
+This applies to every context that attaches to a tab: `browser.AttachTab` and everything built on it, including tabs from `Session.NewTab`.
 
 The goroutine leaks this causes are irrelevant for a CLI tool (the process exits shortly after anyway).
 
-### Exception
-
-Tabs created via `browser.NewTab` may be cancelled, because we created them ourselves.
+Tab contexts must derive from the session's browser context. One derived from the allocator opens its own websocket, and its second `Run` after a failed connect panics with `close of closed channel`.
 
 ## Per-session CDP state
 
-Every command is its own process, so anything a CDP session sets (Emulation overrides, enabled domains) ends with it. `resize` therefore runs a detached `emulation-holder`. Choosing the active tab already attaches and sends `Runtime.enable`, so a listener for replayed console messages has to toggle `Runtime.disable`/`enable` itself.
+Every command is its own process, so anything a CDP session sets (Emulation overrides, enabled domains) ends with it. `resize` therefore runs a detached `emulation-holder`. Chrome reports a JS dialog only to sessions that had `Page` enabled when it opened, and `Page.enable` blocks while one is open, so a detached `dialog-keeper` answers dialogs that open between commands. Choosing the active tab already attaches and sends `Runtime.enable`, so a listener for replayed console messages has to toggle `Runtime.disable`/`enable` itself.
 
 ## Bound every round trip to a tab
 

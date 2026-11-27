@@ -48,6 +48,7 @@ These flags are accepted before or after the command name, so `wait #x --timeout
 | `--browser` | `chrome-stable` | Browser variant: `chrome-stable`, `chrome-beta`, `chrome-dev`, `chrome-canary`, `cft-stable`, `cft-beta`, `cft-dev`, `cft-canary` |
 | `--port` | `9222` | Remote debugging port |
 | `--timeout` | `10s` | How long to wait for elements and page loads (e.g. `30s`, `500ms`, `2m`) |
+| `--dialog` | `accept` | How to answer `alert`, `confirm`, `prompt` and `beforeunload`: `accept`, `dismiss`, or a text that accepts a prompt with it |
 
 ---
 
@@ -101,6 +102,18 @@ For a CSS selector that matches nothing, the report names the longest prefix tha
 ## Settling
 
 `navigate` and `reload` return once the page has fired its load event and traffic has died down; pages that poll forever are not waited on beyond a short cap. The acting commands (`mouse`, `fill`, `check`, `select`, `key`, `scroll`) wait for the page to go quiet after they act. Scripting `sleep` around these commands is never needed.
+
+## Dialogs
+
+A JavaScript dialog blocks its page until someone answers it, so every command answers the dialogs its tabs open while it runs, following `--dialog`. A prompt gets its default text unless `--dialog` carries one:
+
+```bash
+./scripts/browser-tools mouse click "text=Delete"                  # dialog: confirm "Really delete?" accepted
+./scripts/browser-tools --dialog dismiss mouse click "text=Delete" # dialog: confirm "Really delete?" dismissed
+./scripts/browser-tools --dialog "Andi" mouse click "#rename"      # dialog: prompt "Name?" answered "Andi"
+```
+
+A dialog that opens between two commands, say from a timer, is accepted by a background process that runs as long as the browser does. The next command reports it with `was accepted between commands`.
 
 ## Commands
 

@@ -17,11 +17,12 @@ var (
 	browserVariant = flag.String("browser", browserDefault(), "browser variant: chrome-stable, chrome-beta, chrome-dev, chrome-canary, cft-stable, cft-beta, cft-dev, cft-canary")
 	port           = flag.Int("port", 9222, "remote debugging port")
 	timeout        = flag.Duration("timeout", 10*time.Second, "how long commands wait for elements and page loads")
+	dialog         = flag.String("dialog", "accept", "answer to alert/confirm/prompt dialogs: accept, dismiss, or the text for a prompt")
 )
 
 // globalFlags may be written after the command name as well, so
 // `wait #x --timeout 30s` works the same as `--timeout 30s wait #x`.
-var globalFlags = map[string]bool{"browser": true, "port": true, "timeout": true}
+var globalFlags = map[string]bool{"browser": true, "port": true, "timeout": true, "dialog": true}
 
 // longRunning lists the commands that stream until the user stops them, so the
 // watchdog stays disarmed for them.
@@ -34,6 +35,7 @@ var longRunning = map[string]bool{
 	"update-cft":   true,
 
 	browser.HolderCommand: true,
+	browser.KeeperCommand: true,
 }
 
 // armWatchdog ends the process once the command budget is spent. The timeout is
@@ -145,8 +147,11 @@ func main() {
 	bgCtx := context.Background()
 
 	command := flag.Arg(0)
+	// Streaming commands stay attached for minutes and leave dialogs to the
+	// commands that act on the page.
 	if !longRunning[command] {
 		armWatchdog(*timeout, command)
+		browser.DialogAnswer = *dialog
 	}
 
 	switch command {
@@ -192,6 +197,10 @@ func main() {
 		cmd.Resize(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case browser.HolderCommand:
 		cmd.HoldEmulation(bgCtx, *browserVariant, *port, flag.Args()[1:])
+	case browser.KeeperCommand:
+		if err := browser.RunDialogKeeper(*port); err != nil {
+			os.Exit(1)
+		}
 	case "screenshot":
 		cmd.Screenshot(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "scroll":

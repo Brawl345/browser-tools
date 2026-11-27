@@ -167,7 +167,10 @@ Accepted before or after the command:
 --browser <variant>   # chrome-stable|beta|dev|canary, cft-stable|beta|dev|canary
 --port <n>            # remote debugging port (default 9222)
 --timeout <duration>  # how long to wait for elements and loads (default 10s)
+--dialog <answer>     # alert/confirm/prompt: accept (default), dismiss, or the text for a prompt
 ```
+
+Every answered dialog is reported as a `dialog:` line.
 
 ## More
 
