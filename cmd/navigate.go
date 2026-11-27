@@ -31,10 +31,7 @@ func Navigate(ctx context.Context, variant string, port int, args []string) {
 		os.Exit(1)
 	}
 
-	rawURL := fs.Arg(0)
-	if !strings.Contains(rawURL, "://") {
-		rawURL = "https://" + rawURL
-	}
+	rawURL := normalizeURL(fs.Arg(0))
 
 	s := MustSession(ctx, variant, port)
 
@@ -53,6 +50,28 @@ func Navigate(ctx context.Context, variant string, port int, args []string) {
 		fail("%v", err)
 	}
 	report("Navigated to", rawURL, WaitLoaded(ctx, tabCtx, w))
+}
+
+// opaqueSchemes are URL schemes written without "//".
+var opaqueSchemes = []string{"about:", "data:", "blob:", "javascript:", "view-source:", "mailto:"}
+
+// normalizeURL adds a scheme to a bare host: http for local addresses, https
+// for everything else.
+func normalizeURL(raw string) string {
+	if strings.Contains(raw, "://") {
+		return raw
+	}
+	lower := strings.ToLower(raw)
+	for _, s := range opaqueSchemes {
+		if strings.HasPrefix(lower, s) {
+			return raw
+		}
+	}
+	host := strings.SplitN(strings.SplitN(lower, "/", 2)[0], ":", 2)[0]
+	if host == "localhost" || host == "127.0.0.1" ||strings.HasSuffix(host, ".localhost") {
+		return "http://" + raw
+	}
+	return "https://" + raw
 }
 
 func report(verb, url string, loaded bool) {

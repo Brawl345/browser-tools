@@ -106,7 +106,7 @@ For a CSS selector that matches nothing, the report names the longest prefix tha
 
 ### navigate
 
-Navigate to a URL in the active tab or open in a new tab. A URL without a scheme gets `https://`:
+Navigate to a URL in the active tab or open in a new tab. A URL without a scheme gets `https://`, or `http://` for `localhost` and `127.0.0.1`. `about:`, `data:` and `file://` URLs work as they are:
 
 ```bash
 ./scripts/browser-tools navigate https://example.com
