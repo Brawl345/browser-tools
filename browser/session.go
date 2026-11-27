@@ -61,6 +61,12 @@ func Launch(variant string, port int, extra ...string) error {
 		fmt.Sprintf("--user-data-dir=%s", udd),
 		"--no-first-run",
 		"--no-default-browser-check",
+		// A window covered by another app stops rendering on macOS even while its
+		// tabs report visible, and CDP input waits for a frame that never comes.
+		"--disable-frame-rate-limit",
+		"--disable-backgrounding-occluded-windows",
+		"--disable-renderer-backgrounding",
+		"--disable-background-timer-throttling",
 	}
 	if IsChromeForTesting(variant) {
 		args = append(args, "--enable-unsafe-extension-debugging")

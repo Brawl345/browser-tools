@@ -157,7 +157,7 @@ Commands start the browser on their own. `start` does it explicitly and can pass
 
 ```bash
 ./scripts/browser-tools start --fake-media            # fake camera + mic, permission granted without prompt
-./scripts/browser-tools start --arg=--disable-backgrounding-occluded-windows # any Chrome flag, repeatable
+./scripts/browser-tools start --arg=--autoplay-policy=no-user-gesture-required # any Chrome flag, repeatable
 ./scripts/browser-tools start --arg=-AppleLanguages --arg='(de)'   # UI language on macOS
 ```
 

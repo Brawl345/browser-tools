@@ -37,8 +37,10 @@ BROWSER_TOOLS_USER_DATA_DIR=/tmp/profile2 ./scripts/browser-tools --port 9333 st
 ```bash
 ./scripts/browser-tools stop
 ./scripts/browser-tools start --fake-media
-./scripts/browser-tools start --arg=--disable-backgrounding-occluded-windows
+./scripts/browser-tools start --arg=--autoplay-policy=no-user-gesture-required
 ```
+
+The browser keeps rendering at full speed while other windows cover it, so clicks, animations and lazily loaded content work in a window in the background.
 
 For changing the UI language use `--arg=--lang=de` on Linux and Windows. On macOS, use `AppleLanguages` passed as two arguments: `--arg=-AppleLanguages --arg='(de)'`.
 
@@ -131,7 +133,7 @@ A JavaScript dialog blocks its page until someone answers it, so every command a
 ```bash
 ./scripts/browser-tools mouse click "text=Delete"                  # dialog: confirm "Really delete?" accepted
 ./scripts/browser-tools --dialog dismiss mouse click "text=Delete" # dialog: confirm "Really delete?" dismissed
-./scripts/browser-tools --dialog "Andi" mouse click "#rename"      # dialog: prompt "Name?" answered "Andi"
+./scripts/browser-tools --dialog "Robin" mouse click "#rename"     # dialog: prompt "Name?" answered "Robin"
 ```
 
 A dialog that opens between two commands, say from a timer, is accepted by a background process that runs as long as the browser does. The next command reports it with `was accepted between commands`.
