@@ -1,0 +1,6 @@
+<!doctype html>
+<title>Polling</title>
+<p id="status">polling</p>
+<script>
+  setInterval(() => fetch("/blank.html?poll=" + Date.now()), 200);
+</script>

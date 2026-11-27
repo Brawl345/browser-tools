@@ -1,0 +1,7 @@
+<!doctype html>
+<title>Opener</title>
+<h1 id="opener">Opener</h1>
+<p><a id="link" href="/closer.html?via=link" target="_blank">Open in a new tab</a></p>
+<p><button id="tab" onclick="window.open('/closer.html?via=open')">window.open</button></p>
+<p><button id="delayed" onclick="setTimeout(() => window.open('/closer.html?via=delayed'), 1000)">window.open after a second</button></p>
+<p><button id="popup" onclick="window.open('/closer.html?via=popup', 'pop', 'popup,width=500,height=400')">Popup window</button></p>

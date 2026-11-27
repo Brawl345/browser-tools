@@ -1,0 +1,13 @@
+<!doctype html>
+<title>Emulation</title>
+<p><button id="tap">Tap me</button></p>
+<p id="out"></p>
+<script>
+  const seen = [];
+  for (const type of ["pointerdown", "touchstart", "mousedown", "click"]) {
+    document.addEventListener(type, (e) => {
+      seen.push(e.pointerType ? `${type}:${e.pointerType}` : type);
+      document.getElementById("out").textContent = seen.join(" ");
+    });
+  }
+</script>

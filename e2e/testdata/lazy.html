@@ -1,0 +1,13 @@
+<!doctype html>
+<title>Lazy</title>
+<h1>Lazy</h1>
+<div style="height: 6000px"></div>
+<section id="host"></section>
+<script>
+  new IntersectionObserver((entries, obs) => {
+    if (entries.some((e) => e.isIntersecting)) {
+      document.getElementById("host").innerHTML = '<button id="lazy">Load more</button>';
+      obs.disconnect();
+    }
+  }).observe(document.getElementById("host"));
+</script>

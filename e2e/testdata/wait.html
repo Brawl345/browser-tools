@@ -1,0 +1,15 @@
+<!doctype html>
+<title>Waiting</title>
+<h1>Waiting</h1>
+<p id="spinner">loading</p>
+<p id="toast">Saved</p>
+<script>
+  setTimeout(() => {
+    const p = document.createElement("p");
+    p.id = "late";
+    p.textContent = "arrived";
+    document.body.append(p);
+  }, 1500);
+  setTimeout(() => document.getElementById("spinner").remove(), 1000);
+  setTimeout(() => (document.getElementById("toast").style.display = "none"), 1000);
+</script>

@@ -1,0 +1,36 @@
+<!doctype html>
+<title>Form</title>
+<form id="form" onsubmit="event.preventDefault(); out.textContent = 'submitted ' + new FormData(this).get('q')">
+  <p><input id="q" name="q" value="old"></p>
+  <p><textarea id="note"></textarea></p>
+  <p><label><input id="terms" type="checkbox"> Terms</label></p>
+  <p><label><input id="r1" type="radio" name="r" value="one"> One</label> <label><input id="r2" type="radio" name="r" value="two"> Two</label></p>
+  <p>
+    <select id="color">
+      <option value="r">Red</option>
+      <option value="g">Green</option>
+      <option value="b">Blue</option>
+    </select>
+  </p>
+  <p><select id="hidden-select" style="display: none"><option>a</option></select></p>
+  <p><input id="hidden-input" style="display: none"></p>
+  <p><button id="submit">Send</button></p>
+</form>
+<p><span id="drag" draggable="true" style="display: inline-block; width: 60px; height: 30px; background: #ccc">drag</span></p>
+<div id="drop" style="width: 200px; height: 60px; border: 1px solid">drop here</div>
+<p id="out"></p>
+<p id="keys"></p>
+<div style="height: 4000px"></div>
+<p id="bottom">bottom</p>
+<script>
+  const out = document.getElementById("out");
+  const keys = document.getElementById("keys");
+  document.addEventListener("keydown", (e) => (keys.textContent += e.key + " "));
+  document.getElementById("color").addEventListener("change", (e) => (out.textContent = "color " + e.target.value));
+  const drop = document.getElementById("drop");
+  drop.addEventListener("dragover", (e) => e.preventDefault());
+  drop.addEventListener("drop", (e) => {
+    e.preventDefault();
+    out.textContent = "dropped";
+  });
+</script>

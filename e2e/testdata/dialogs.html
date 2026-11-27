@@ -1,0 +1,7 @@
+<!doctype html>
+<title>Dialogs</title>
+<p><button id="alert" onclick="alert('Saved'); out.textContent = 'after alert'">Alert</button></p>
+<p><button id="confirm" onclick="out.textContent = confirm('Really delete?') ? 'confirmed' : 'cancelled'">Confirm</button></p>
+<p><button id="prompt" onclick="out.textContent = 'name=' + prompt('Name?', 'Guest')">Prompt</button></p>
+<p><button id="later" onclick="setTimeout(() => { alert('Timer done'); out.textContent = 'timer answered' }, 300)">Alert later</button></p>
+<p id="out"></p>

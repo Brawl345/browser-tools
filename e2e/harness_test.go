@@ -72,8 +72,13 @@ func run(t *testing.T, args ...string) result {
 	if r.took > timeout+overrun {
 		t.Errorf("%q took %s with --timeout %s", args, r.took.Round(time.Millisecond), timeout)
 	}
+	if strings.Contains(r.stderr, watchdogMessage) {
+		t.Errorf("%q was ended by the watchdog:\n%s", args, r.output())
+	}
 	return r
 }
+
+const watchdogMessage = "got no answer from the browser within"
 
 func ok(t *testing.T, args ...string) result {
 	t.Helper()
@@ -108,6 +113,23 @@ func lacks(t *testing.T, r result, unwanted ...string) {
 		if strings.Contains(r.output(), u) {
 			t.Errorf("output has %q:\n%s", u, r.output())
 		}
+	}
+}
+
+func js(t *testing.T, script string) string {
+	t.Helper()
+	return strings.TrimSpace(ok(t, "evaluate-js", script).stdout)
+}
+
+func text(t *testing.T, sel string) string {
+	t.Helper()
+	return strings.TrimSpace(ok(t, "element", sel, "--attr", "text").stdout)
+}
+
+func equal(t *testing.T, what, got, want string) {
+	t.Helper()
+	if got != want {
+		t.Errorf("%s = %q, want %q", what, got, want)
 	}
 }
 

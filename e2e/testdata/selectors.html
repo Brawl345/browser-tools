@@ -1,0 +1,41 @@
+<!doctype html>
+<title>Selectors</title>
+<style>
+  .card .actions { display: none; }
+  .card:hover .actions { display: block; }
+  .row .tw-hidden { visibility: hidden; }
+  .group:hover .group-hover\:visible { visibility: visible; }
+  #cover-box { position: relative; width: 200px; height: 40px; }
+  #covered, #overlay { position: absolute; inset: 0; }
+  #overlay { background: rgba(0, 0, 0, 0.1); }
+</style>
+<h1>Selectors</h1>
+<p><button id="save-draft">Save draft</button> <button id="save">Save</button></p>
+<p><a id="wrapper" href="#"><span id="inner">Inner label</span></a></p>
+<p><input id="install" type="button" value="Install now"></p>
+<p><button id="icon" aria-label="Close panel">×</button></p>
+<p><input id="email" placeholder="E-Mail address"></p>
+<div class="toolbar" id="toolbar-a"><button>Edit</button></div>
+<div class="toolbar" id="toolbar-b"><button id="edit-b">Edit</button></div>
+<div class="card" id="card-3"><span>Card three</span><div class="actions"><button id="delete">Delete</button></div></div>
+<div class="row group" id="row-7"><span>Row seven</span><button id="tw" class="tw-hidden group-hover:visible">Archive</button></div>
+<div id="cover-box"><button id="covered">Under</button><div id="overlay"></div></div>
+<p>Plain prose with a Feed suchen phrase.</p>
+<p><button>Feed suchen</button></p>
+<host-el id="host"></host-el>
+<p id="out"></p>
+<script>
+  const out = document.getElementById("out");
+  document.addEventListener("click", (e) => {
+    const t = e.composedPath()[0];
+    out.textContent = "clicked " + (t.id || t.textContent);
+  });
+  customElements.define(
+    "host-el",
+    class extends HTMLElement {
+      connectedCallback() {
+        this.attachShadow({ mode: "open" }).innerHTML = '<button id="shadow-btn">Shadow action</button>';
+      }
+    },
+  );
+</script>
