@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -281,18 +282,31 @@ func (s *Session) ActiveTab() (context.Context, error) {
 		return nil, err
 	}
 	if t == nil {
-		ctx, _ := s.NewTab()
-		if err := chromedp.Run(ctx); err != nil {
-			return nil, err
-		}
-		return ctx, nil
+		return s.NewTab()
 	}
 	return s.Tab(t.TargetID), nil
 }
 
-// NewTab opens a new tab. Its context may be cancelled, since the tab is ours.
-func (s *Session) NewTab() (context.Context, context.CancelFunc) {
-	return chromedp.NewContext(s.brCtx)
+// NewTab opens a blank tab and attaches to it.
+func (s *Session) NewTab() (context.Context, error) {
+	var id TargetID
+	err := s.Do(func(ctx context.Context) error {
+		var err error
+		id, err = target.CreateTarget("about:blank").Do(ctx)
+		if err != nil && strings.Contains(err.Error(), "no browser is open") {
+			// On macOS Chrome keeps running without a window once its last tab
+			// is closed, and only a new window can host a tab then.
+			err = KeepFront(launchRaiseWindow, func() error {
+				id, err = target.CreateTarget("about:blank").WithNewWindow(true).Do(ctx)
+				return err
+			})
+		}
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.Tab(id), nil
 }
 
 // ActivateTabByID selects a tab by its target ID, leaving the frontmost app in

@@ -37,7 +37,10 @@ func Navigate(ctx context.Context, variant string, port int, args []string) {
 
 	var tabCtx context.Context
 	if *newTab {
-		tabCtx, _ = s.NewTab()
+		var err error
+		if tabCtx, err = s.NewTab(); err != nil {
+			fail("cannot open a tab: %v", err)
+		}
 		if err := RunBounded(tabCtx, browser.SelectCurrentTab()); err != nil {
 			fail("%v", err)
 		}
@@ -68,7 +71,7 @@ func normalizeURL(raw string) string {
 		}
 	}
 	host := strings.SplitN(strings.SplitN(lower, "/", 2)[0], ":", 2)[0]
-	if host == "localhost" || host == "127.0.0.1" ||strings.HasSuffix(host, ".localhost") {
+	if host == "localhost" || host == "127.0.0.1" || strings.HasSuffix(host, ".localhost") {
 		return "http://" + raw
 	}
 	return "https://" + raw
