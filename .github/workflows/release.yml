@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-          fetch-depth: 5
+          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
@@ -97,6 +97,24 @@ jobs:
           cd pkg && zip -r ../browser-tools-linux-arm64.zip . && cd ..
           rm -rf pkg
 
+      - name: Write release notes
+        env:
+          GH_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          prev="$(git rev-parse -q --verify 'refs/tags/latest^{commit}' || true)"
+          {
+            echo "Latest build — commit ${GH_SHA}"
+            echo
+            if [ -n "$prev" ] && [ "$prev" != "$GH_SHA" ] && git merge-base --is-ancestor "$prev" HEAD; then
+              echo "## Changes since the previous build"
+              git log --pretty='format:- %s (%h)' "${prev}..HEAD"
+            else
+              echo "## Last 20 commits"
+              git log -20 --pretty='format:- %s (%h)'
+            fi
+          } > "${RUNNER_TEMP}/notes.md"
+
       - name: Update latest tag
         env:
           GH_TOKEN: ${{ github.token }}
@@ -111,20 +129,11 @@ jobs:
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_SHA: ${{ github.sha }}
         run: |
-          notes_file="$(mktemp)"
-          {
-            echo "Latest build — commit ${GH_SHA}"
-            echo
-            echo "## Last 5 commits"
-            git log -5 --pretty='format:- %s (%h)'
-          } > "$notes_file"
-
           gh release delete latest --yes || true
           gh release create latest \
             --title Latest \
-            --notes-file "$notes_file" \
+            --notes-file "${RUNNER_TEMP}/notes.md" \
             --latest \
             browser-tools-darwin-amd64.zip \
             browser-tools-darwin-arm64.zip \
