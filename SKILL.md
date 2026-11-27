@@ -63,6 +63,7 @@ Anywhere a selector is taken, three kinds work. Text is usually the shortest:
 ./scripts/browser-tools html --filter "data-id=\"\d+\"" --lines 10
 ./scripts/browser-tools console --errors-only --limit 20  # last 20, includes messages logged before it ran
 ./scripts/browser-tools cookie                            # --all for every origin
+./scripts/browser-tools cookie set name value --http-only # changes an existing one; also: cookie delete name
 ./scripts/browser-tools dom-storage                       # --local / --session
 ```
 

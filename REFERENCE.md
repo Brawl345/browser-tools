@@ -296,15 +296,27 @@ Options:
 
 ### cookie
 
-List cookies for the current tab:
+List, set, change and delete cookies, HttpOnly ones included:
 
 ```bash
 ./scripts/browser-tools cookie
 ./scripts/browser-tools cookie --all
+./scripts/browser-tools cookie set session abc123 --http-only --expires 7d
+./scripts/browser-tools cookie set consent yes --domain .example.com --same-site Lax
+./scripts/browser-tools cookie delete session
 ```
 
 Options:
 - `--all`: List cookies from all origins (not just the current tab's URL)
+
+`cookie set <name> <value>` creates the cookie for the current page's host, or changes the one with that name the page already receives. Attributes left out keep their current value. When several cookies share the name, `--domain` and `--path` pick one.
+- `--domain <d>`: Cookie domain; a leading dot includes subdomains. Needed when the tab shows no http(s) page
+- `--path <p>`: Cookie path (default `/`)
+- `--expires <when>`: `30m`, `12h`, `7d`, `2027-01-31`, an RFC 3339 time, a Unix timestamp, or `session` (default)
+- `--secure`, `--http-only`: Set the flags, `--secure=false` clears one. `--secure` is on by default when the page is https, `--http-only` is off
+- `--same-site <v>`: `Strict`, `Lax` or `None` (`None` needs `--secure`). Left unset, Chrome treats the cookie as `Lax`
+
+`cookie delete <name>` deletes the cookies with that name that the current page receives. `--domain` and `--path` narrow it down or reach cookies of other sites. To delete every cookie, use `clear --cookies`.
 
 ### clear
 
