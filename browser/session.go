@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chromedp/cdproto"
+	cdpbrowser "github.com/chromedp/cdproto/browser"
 	cdp "github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/target"
@@ -79,6 +81,32 @@ func Launch(variant string, port int, extra ...string) error {
 		waitForExtensions(variant, port)
 	}
 	return err
+}
+
+// Quit closes the browser listening on the port and returns once the port is
+// free. Holders and the dialog keeper follow it on their own.
+func Quit(port int) error {
+	wsURL, err := browserWSURL(port)
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	conn, err := chromedp.DialContext(ctx, wsURL)
+	if err != nil {
+		return err
+	}
+	// chromedp refuses Browser.close on its own executor, so it goes out raw.
+	_ = conn.Write(ctx, &cdproto.Message{ID: 1, Method: cdproto.MethodType(cdpbrowser.CommandClose)})
+	_ = conn.Close()
+	_ = os.Remove(tabStateFile(port))
+	deadline := time.Now().Add(8 * time.Second)
+	for portInUse(port) {
+		if time.Now().After(deadline) {
+			return fmt.Errorf("the browser on port %d did not quit within 8s", port)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return nil
 }
 
 // launchRaiseWindow and activateRaiseWindow bound how long the browser may take

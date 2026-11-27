@@ -158,7 +158,7 @@ Commands start the browser on their own. `start` does it explicitly and can pass
 ./scripts/browser-tools start --arg=-AppleLanguages --arg='(de)'   # UI language on macOS
 ```
 
-With a browser already on the port, `start` with flags fails; quit it first. `getUserMedia` still needs HTTPS or `http://localhost`.
+With a browser already on the port, `start` with flags fails; run `./scripts/browser-tools stop` first. `getUserMedia` still needs HTTPS or `http://localhost`.
 
 ## Global options
 

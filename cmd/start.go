@@ -41,7 +41,7 @@ func Start(variant string, port int, args []string) {
 
 	if browser.IsRunning(port) {
 		if len(launchArgs) > 0 {
-			fail("a browser is already running on port %d and ignores launch flags\n  quit it first, then run start again", port)
+			fail("a browser is already running on port %d and ignores launch flags\n  run `browser-tools stop` first, then start again", port)
 		}
 		fmt.Fprintf(os.Stderr, "already running on port %d\n", port)
 		return
@@ -60,4 +60,24 @@ func Start(variant string, port int, args []string) {
 	}
 
 	fmt.Printf("%s✓%s browser ready on port %d\n", ansiGreen, ansiReset, port)
+}
+
+func Stop(port int, args []string) {
+	fs := flag.NewFlagSet("stop", flag.ExitOnError)
+	fs.Usage = func() {
+		fmt.Fprintln(os.Stderr, "Usage: browser-tools stop")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "Quits the browser on the port, so the next start can pass new flags.")
+	}
+	if err := fs.Parse(args); err != nil {
+		os.Exit(1)
+	}
+	if !browser.IsRunning(port) {
+		fmt.Printf("%s✓%s no browser is running on port %d\n", ansiGreen, ansiReset, port)
+		return
+	}
+	if err := browser.Quit(port); err != nil {
+		fail("%v", err)
+	}
+	fmt.Printf("%s✓%s browser on port %d quit\n", ansiGreen, ansiReset, port)
 }

@@ -121,6 +121,7 @@ func usage() {
 		{"scroll [<sel>|--x|--y|--top|--bottom]", "Scroll to an element or X/Y position"},
 		{"select [options] <sel> <val>", "Select a dropdown option"},
 		{"start", "Start the browser with remote debugging"},
+		{"stop", "Quit the browser"},
 		{"tab [options]", "Manage tabs"},
 		{"update [--check] [--force]", "Update browser-tools to the latest release"},
 		{"update-cft [--channel <c>]", "Download or update a Chrome for Testing build"},
@@ -213,6 +214,8 @@ func main() {
 		cmd.Wait(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "start":
 		cmd.Start(*browserVariant, *port, flag.Args()[1:])
+	case "stop":
+		cmd.Stop(*port, flag.Args()[1:])
 	case "tab":
 		cmd.Tab(timeoutCtx, *browserVariant, *port, flag.Args()[1:])
 	case "update":

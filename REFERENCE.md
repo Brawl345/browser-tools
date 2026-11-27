@@ -25,7 +25,7 @@ Every command starts the browser automatically if it isn't running yet. A fresh 
 BROWSER_TOOLS_BROWSER=chrome-canary ./scripts/browser-tools start
 ```
 
-`start` passes extra flags to Chrome. They only take effect when `start` launches the browser; if one is already listening on the port, `start` with flags exits with an error. Quit that browser first. Another `--port` does not help: every variant keeps one profile directory, and a second launch on the same profile hands over to the running instance.
+`start` passes extra flags to Chrome. They only take effect when `start` launches the browser; if one is already listening on the port, `start` with flags exits with an error. `stop` quits that browser first; it returns once the port is free. Another `--port` does not help: every variant keeps one profile directory, and a second launch on the same profile hands over to the running instance.
 
 | Flag | Description |
 |---|---|
@@ -33,6 +33,7 @@ BROWSER_TOOLS_BROWSER=chrome-canary ./scripts/browser-tools start
 | `--arg <flag>` | Appends any Chrome command-line flag; repeatable. Write it as `--arg=--flag=value` |
 
 ```bash
+./scripts/browser-tools stop
 ./scripts/browser-tools start --fake-media
 ./scripts/browser-tools start --arg=--disable-backgrounding-occluded-windows
 ```
