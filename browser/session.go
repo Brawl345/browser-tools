@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -55,6 +56,10 @@ func Launch(variant string, port int, extra ...string) error {
 	}
 	if IsChromeForTesting(variant) {
 		args = append(args, "--enable-unsafe-extension-debugging")
+		if runtime.GOOS == "darwin" {
+			// CfT is ad-hoc signed, so the keychain forgets "Always Allow" with every update.
+			args = append(args, "--use-mock-keychain")
+		}
 	}
 	args = append(args, extra...)
 
