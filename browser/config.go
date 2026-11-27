@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 )
 
 type Config struct {
@@ -162,7 +163,15 @@ func platformConfigs() map[string]Config {
 	}
 }
 
+// UserDataDirEnv points every variant at one profile directory.
+const UserDataDirEnv = "BROWSER_TOOLS_USER_DATA_DIR"
+
+var userDataDirOverride = sync.OnceValue(func() string { return os.Getenv(UserDataDirEnv) })
+
 func UserDataDir(variant string) string {
+	if dir := userDataDirOverride(); dir != "" {
+		return dir
+	}
 	var base string
 	switch runtime.GOOS {
 	case "windows":

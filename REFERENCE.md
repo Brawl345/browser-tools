@@ -23,9 +23,11 @@ Every command starts the browser automatically if it isn't running yet. A fresh 
 ./scripts/browser-tools --browser chrome-canary --port 9222 start
 # Or via environment variable
 BROWSER_TOOLS_BROWSER=chrome-canary ./scripts/browser-tools start
+# A second browser on its own port and profile
+BROWSER_TOOLS_USER_DATA_DIR=/tmp/profile2 ./scripts/browser-tools --port 9333 start
 ```
 
-`start` passes extra flags to Chrome. They only take effect when `start` launches the browser; if one is already listening on the port, `start` with flags exits with an error. `stop` quits that browser first; it returns once the port is free. Another `--port` does not help: every variant keeps one profile directory, and a second launch on the same profile hands over to the running instance.
+`start` passes extra flags to Chrome. They only take effect when `start` launches the browser; if one is already listening on the port, `start` with flags exits with an error. `stop` quits that browser first; it returns once the port is free. Another `--port` alone does not help: every variant keeps one profile directory, and a second launch on the same profile hands over to the running instance. `BROWSER_TOOLS_USER_DATA_DIR` gives every variant the profile directory it names.
 
 | Flag | Description |
 |---|---|
