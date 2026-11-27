@@ -1,8 +1,13 @@
 package e2e
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/png"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -108,8 +113,23 @@ func pageHandler() http.Handler {
 	mux.HandleFunc("/redirect", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/list.html", http.StatusFound)
 	})
+	mux.HandleFunc("/red.png", func(w http.ResponseWriter, r *http.Request) {
+		if d, err := time.ParseDuration(r.URL.Query().Get("delay")); err == nil {
+			time.Sleep(d)
+		}
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write(redPNG)
+	})
 	return mux
 }
+
+var redPNG = func() []byte {
+	img := image.NewRGBA(image.Rect(0, 0, 100, 100))
+	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{255, 0, 0, 255}}, image.Point{}, draw.Src)
+	var buf bytes.Buffer
+	_ = png.Encode(&buf, img)
+	return buf.Bytes()
+}()
 
 func pageURL(name string) string {
 	return server.URL + "/" + strings.TrimPrefix(name, "/")

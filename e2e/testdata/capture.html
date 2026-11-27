@@ -1,0 +1,20 @@
+<!doctype html>
+<title>Capture</title>
+<style>
+  body { margin: 0; }
+  #slot { position: absolute; left: 20px; top: 20px; width: 100px; height: 100px; }
+  #box { position: absolute; left: 50px; top: 1500px; width: 200px; height: 100px; background: rgb(0, 0, 255); }
+</style>
+<div id="slot"></div>
+<div id="box"></div>
+<div style="height: 3000px"></div>
+<p><a id="dl" href="/download">Report</a></p>
+<p><input id="files" type="file" multiple></p>
+<p id="out"></p>
+<script>
+  document.getElementById("files").addEventListener("change", async (e) => {
+    const parts = [];
+    for (const f of e.target.files) parts.push(f.name + ":" + (await f.text()).trim());
+    document.getElementById("out").textContent = parts.join(" ");
+  });
+</script>
